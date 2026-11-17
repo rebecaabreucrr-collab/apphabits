@@ -523,3 +523,35 @@ label:has(> .dot.bg-amber), label:has(> .dot.bg-emerald), label:has(> .dot.bg-or
 .square { aspect-ratio: auto; min-height: 172px; gap: 6px; }
 .wheel { flex: none; }
 .wheel.sm .wheel-center small:last-of-type { font-size: 8.5px; }
+.water-q { margin: 0 0 6px; font-weight: 600; }
+.water-sizes { margin: 0 -16px; padding: 0 16px 4px; }
+.water-sizes .chip { white-space: nowrap; }
+.water-add { margin: 10px 0 4px; }
+.water-log { text-align: center; }
+/* estudo */
+.st-item { padding: 10px 0; } .st-item + .st-item { border-top: 1px solid var(--line); }
+.st-item b { font-size: 16px; }
+.st-topic { margin: 4px 0 2px; font-weight: 600; }
+.st-actions { margin-top: 8px; }
+.st-pre { margin-top: -4px; color: rgba(255, 255, 255, .95) !important; }
+.st-slot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.st-slot b { width: 86px; font-size: 14px; }
+.st-slot input { border: 1.5px solid var(--line); background: var(--surface-2); border-radius: 10px; padding: 7px 8px; -webkit-appearance: none; appearance: none; min-height: 38px; }
+.resume-card { border: 1.5px solid color-mix(in srgb, var(--c-sky) 40%, transparent); }
+/* leitura */
+.book-dates { margin-top: 2px; }
+.done-books { display: flex; align-items: center; gap: 12px; }
+.book-when { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 6px; }
+.book-when span { background: var(--surface); box-shadow: var(--shadow); border-radius: 999px; padding: 6px 12px; font-size: 13.5px; }
+details.card > summary { cursor: pointer; padding: 2px 0; }
+.notebook { margin: 12px 0; border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden;
+  background: var(--surface) repeating-linear-gradient(to bottom, transparent 0 31px, color-mix(in srgb, var(--c-sky) 22%, transparent) 31px 32px);
+  border-left: 4px solid color-mix(in srgb, var(--c-pink) 45%, transparent); padding: 14px 16px 16px 22px; }
+.nb-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; background: var(--surface); }
+.nb-note { padding: 8px 0 6px; line-height: 32px; cursor: default; }
+.nb-note[data-act] { cursor: pointer; }
+.nb-note small { line-height: 1.4; color: var(--accent); font-weight: 700; }
+.nb-note p { margin: 0; font-family: "Bradley Hand", "Segoe Print", "Noteworthy", cursive; font-size: 17px; line-height: 32px; }
+.nb-empty { color: var(--muted); line-height: 32px; margin: 0; }
+.st-slot input { width: 104px; padding: 7px 6px; }
+.st-slot b { width: auto; min-width: 74px; }

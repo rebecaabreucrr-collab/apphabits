@@ -4,6 +4,7 @@ import { $, dateKey, fmtTimer, esc } from './utils.js';
 import { iconize, svg } from './icons.js';
 import { TAB_DEFS } from './defaults.js';
 import { routes as meds } from './view-meds.js';
+import { routes as study, studyElapsed } from './view-study.js';
 import { A, C, ui, setRender, closeSheet } from './ui.js';
 import { timerElapsed } from './logic.js';
 import { routes as today } from './view-today.js';
@@ -14,7 +15,7 @@ import { routes as more } from './view-more.js';
 import { routes as cycle } from './view-cycle.js';
 
 load();
-const routes = { ...today, ...care, ...reading, ...challenge, ...more, ...cycle, ...meds };
+const routes = { ...today, ...care, ...reading, ...challenge, ...more, ...cycle, ...meds, ...study };
 
 function tabIds() { return ['hoje', ...state.settings.tabs.map((t) => t.id), 'mais']; }
 function renderTabs() {
@@ -77,6 +78,8 @@ document.addEventListener('change', (e) => {
 setInterval(() => {
   const els = document.querySelectorAll('[data-timer]');
   if (els.length && state.reading.timer.running) els.forEach((el) => { el.textContent = fmtTimer(timerElapsed()); });
+  const st = document.querySelectorAll('[data-study-timer]');
+  if (st.length && state.study.timer.running) st.forEach((el) => { el.textContent = fmtTimer(studyElapsed()); });
 }, 1000);
 
 // virada do dia com o app aberto

@@ -83,7 +83,7 @@ const EMOJI = {
   '🚀': 'rocket', '🔄': 'refresh', '✏️': 'pencil', '🗓️': 'calendar', '⚙️': 'gear', '📲': 'mobile', '⬇︎': 'download', '⬆︎': 'upload',
   '⬇': 'download', '⬆': 'upload', '⏸': 'pause', '⏹': 'stop', '▶︎': 'play', '▶': 'play', '⏱️': 'timer', '📄': 'page', '📕': 'book',
   '📌': 'pin', '🌅': 'sunrise', '🕐': 'clock', '⏳': 'hourglass', '🌤️': 'cloud', '🥤': 'glass', '👤': 'user', '🎨': 'palette',
-  '🧩': 'grid', '📱': 'mobile', '🏠': 'home', '💦': 'drop', '🫶': 'heart', '💜': 'heart', '💗': 'heart', '🔔': 'clock', 'ℹ️': 'note',
+  '🧩': 'grid', '📱': 'mobile', '🏠': 'home', '💦': 'drop', '🫶': 'heart', '💜': 'heart', '💗': 'heart', '🔔': 'clock', '⏰': 'clock', 'ℹ️': 'note',
 };
 
 const RE = /\p{Extended_Pictographic}(?:️|︎|‍(?:\p{Extended_Pictographic}|[♀♂])️?|[\u{1F3FB}-\u{1F3FF}])*/gu;

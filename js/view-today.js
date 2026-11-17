@@ -6,6 +6,7 @@ import { tasksFor, isDone, toggleDone, dayProgress, findTask, hairDay, workoutFo
   activeChallenge, challengeDay, goalDone, nextWashes, peekSkin, setDone, dayScore, taskStatus, waterTotal, addWater, undoWater,
   medPerDay, medTaken } from './logic.js';
 import { cycleWheel } from './view-cycle.js';
+import { studyDay } from './view-study.js';
 import { MASKS } from './defaults.js';
 import { taskSheet } from './forms.js';
 import { bar } from './ui.js';
@@ -43,6 +44,7 @@ function subtitle(t, k) {
       break;
     }
     case 'palavra': parts.push('Toque para ouvir'); break;
+    case 'estudo': { const sec = studyDay(k); parts.push(sec ? `${fmtMinutes(sec / 60)} estudados hoje` : 'Toque para abrir o cronômetro'); break; }
     case 'remedio': {
       const md = state.meds.find((x) => x.id === t.medId);
       parts.push(`${t.qty} ${md?.unit || 'dose'}${t.qty > 1 ? 's' : ''} · ${medTaken(k, t.medId)}/${md ? medPerDay(md) : 0} hoje`);
@@ -59,7 +61,7 @@ function subtitle(t, k) {
 
 function taskRow(t, k, highlight) {
   const done = !!isDone(t, k);
-  const special = ['treino', 'skincare', 'cabelo', 'leitura', 'palavra', 'remedio'].includes(t.type);
+  const special = ['treino', 'skincare', 'cabelo', 'leitura', 'palavra', 'remedio', 'estudo'].includes(t.type);
   return `<li class="task ${done ? 'done' : ''} ${highlight ? 'now' : ''}">
     <div class="t-time">${esc(t.time || '—')}</div>
     <button class="t-main" data-act="openTask" data-id="${t.id}">
@@ -120,16 +122,24 @@ function cycleSquare() {
     ${cycleWheel(sum, 132)}<small class="sq-foot">${ph.icon} ${ph.label}</small></a>`;
 }
 
+export const WATER_SIZES = [100, 150, 200, 250, 300, 350, 400, 500, 600, 750, 1000];
+export const mlLabel = (ml) => (ml >= 1000 ? `${ml} ml (${(ml / 1000).toLocaleString('pt-BR')} L)` : `${ml} ml`);
+
 function waterCard(k) {
   const tot = waterTotal(k), goal = state.water.goal;
   const pct = Math.min(1, tot / goal);
-  const L = (ml) => (ml / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+  const sel = ui.waterSel || 200;
+  const log = state.water.log[k] || [];
   return `<section class="card water">
     <div class="water-top"><span class="t-icon bg-soft-sky">💧</span>
-      <div class="grow"><b>Água · ${L(tot)} L de ${L(goal)} L</b><small>${tot >= goal ? 'Meta batida! 💜' : `faltam ${L(goal - tot)} L`}</small></div>
-      ${(state.water.log[k] || []).length ? `<button class="icon-btn sm" data-act="waterUndo" data-d="${k}" aria-label="Desfazer">↺</button>` : ''}</div>
+      <div class="grow"><b>Água · ${tot} ml de ${goal} ml</b><small>${tot >= goal ? 'Meta batida! 💜' : `faltam ${goal - tot} ml`}</small></div>
+      ${log.length ? `<button class="icon-btn sm" data-act="waterUndo" data-d="${k}" aria-label="Desfazer o último">↺</button>` : ''}</div>
     <div class="water-bar"><span style="width:${pct * 100}%"></span>${[0.25, 0.5, 0.75].map((x) => `<i style="left:${x * 100}%"></i>`).join('')}</div>
-    <div class="water-btns">${[200, 500, 1000].map((ml) => `<button class="btn ghost" data-act="water" data-ml="${ml}" data-d="${k}">+ ${ml < 1000 ? ml + ' ml' : '1 L'}</button>`).join('')}</div>
+    <small class="water-q">Quanto você tomou?</small>
+    <div class="chips scroll water-sizes">${WATER_SIZES.map((ml) => `<button class="chip ${ml === sel ? 'on' : ''}" data-act="waterSel" data-ml="${ml}">${mlLabel(ml)}</button>`).join('')}
+      <button class="chip" data-act="waterOther" data-d="${k}">Outro…</button></div>
+    <button class="btn primary block water-add" data-act="water" data-ml="${sel}" data-d="${k}">+ Adicionar ${mlLabel(sel)}</button>
+    ${log.length ? `<small class="water-log">Hoje: ${log.map((v) => `${v} ml`).join(' + ')}</small>` : ''}
   </section>`;
 }
 
@@ -155,6 +165,10 @@ function tiles(k) {
   const nw = nextWashes(k, 1)[0];
   if (nw) out.push(`<a class="tile t-sky" href="#/cabelo?d=${nw.date}"><span class="tile-ico">${MASKS[nw.mask].icon}</span><div>
     <b>${nw.date === k ? 'Lavar hoje' : fmtRel(nw.date, k).replace(/ \(.*\)/, '')}</b><small>Cabelo · ${MASKS[nw.mask].label}</small></div></a>`);
+  const st = studyDay(k);
+  const lastSt = [...state.study.sessions].sort((a, b) => (b.date + (b.start || '')).localeCompare(a.date + (a.start || '')))[0];
+  out.push(`<a class="tile t-sky" href="#/estudo"><span class="tile-ico">📚</span><div><b>${fmtMinutes(st / 60)} de estudo</b>
+    <small>${lastSt ? esc(lastSt.materia) : 'Estudo de hoje'}</small></div></a>`);
   const r = readingDay(k);
   const b = state.books.find((x) => x.id === state.reading.activeBookId);
   const bp = b && b.pages ? (b.current || 0) / b.pages : 0;
@@ -246,6 +260,18 @@ A.water = (el) => {
   rerender();
 };
 A.waterUndo = (el) => { undoWater(el.dataset.d); rerender(); };
+A.waterSel = (el) => { ui.waterSel = Number(el.dataset.ml); rerender(); };
+A.waterOther = (el) => sheet('Quanto você tomou?', `<form class="form">
+  <label class="field"><span>Quantidade em ml</span><input type="number" inputmode="numeric" name="ml" min="10" max="3000" step="10" value="${ui.waterSel || 200}" required></label>
+  <button class="btn primary block">Adicionar</button></form>`, {
+  onSubmit: (fd) => {
+    const ml = Math.round(Number(fd.get('ml')));
+    if (!ml || ml < 10) return false;
+    const before = waterTotal(el.dataset.d);
+    addWater(el.dataset.d, ml);
+    if (before < state.water.goal && waterTotal(el.dataset.d) >= state.water.goal) toast('Meta de água batida! 💧');
+  },
+});
 A.weekShift = (el) => { ui.date = addDays(ui.date, Number(el.dataset.n)); rerender(); };
 A.addTask = () => taskSheet(undefined, { date: ui.date });
 A.toggleTask = (el) => {
@@ -274,6 +300,7 @@ A.openTask = (el) => {
   if (t.type === 'cabelo') return go(`#/cabelo?d=${k}`);
   if (t.type === 'leitura') return go('#/leitura');
   if (t.type === 'remedio') return go('#/remedios');
+  if (t.type === 'estudo') return go('#/estudo');
   const done = !!isDone(t, k);
   sheet(`${t.icon || ''} ${t.title}`, `
     <p class="muted">${t.time ? `${t.time}${t.end ? ' – ' + t.end : ''} · ` : ''}${state.routine.includes(t) ? 'Rotina fixa (' + t.days.map((d) => WD[d]).join(', ') + ')' : 'Só neste dia'}</p>

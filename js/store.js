@@ -19,6 +19,9 @@ function migrate(s) {
   for (const c of s.challenges || []) for (const g of c.goals) {
     if (!g.link && /^beber 2l de água$/i.test(g.text)) { g.link = '__agua'; g.text = 'Bater a meta de água'; }
   }
+  const est = s.routine.find((r) => r.id === 'r-estudo');
+  if (est && est.type === 'normal' && !s.profile.studyMigrated) est.type = 'estudo';
+  s.profile.studyMigrated = true;
   for (const d of ['resumo', 'semana', 'agua', 'cards', 'rotina', 'desafio']) {
     if (!s.settings.dash.some((x) => x.id === d)) s.settings.dash.push({ id: d, on: true });
   }

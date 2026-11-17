@@ -10,11 +10,12 @@ App de rotina diária instalável no iPhone (PWA). Funciona offline e guarda os 
 - **Skincare**: passos da manhã e da noite com o produto e **o que foi aplicado**, produtos extras do dia, anotações da pele e histórico.
 - **Cronograma capilar**: lava 1 dia sim e 2 não; ciclo de máscaras (hidratação → nutrição → hidratação → nutrição → reconstrução ≈ 2 reconstruções por mês); acidificante só na reconstrução; tônico em toda lavagem. Dá para trocar a máscara do dia, adiar a lavagem ou registrar uma lavagem fora do dia (o cronograma recalcula).
 - **Produtos**: cadastro de tudo que você usa. O app conta quantas vezes e quando usou cada um, mostra os mais usados e monta a lista de compras com o que está acabando.
-- **Leitura**: cronômetro (continua contando mesmo se fechar o app), livros com total de páginas, quantas páginas leu em quantos minutos no dia, ritmo (pág/min), quanto falta para terminar e diário de anotações.
+- **Leitura**: cronômetro (continua contando mesmo se fechar o app), livros com total de páginas, quantas páginas leu em quantos minutos no dia, ritmo (pág/min), quanto falta para terminar e caderno de anotações por livro, data de início e de término, e lista de livros concluídos.
 - **Desafio de 20 dias**: metas diárias (que podem ser marcadas automaticamente pela rotina), calendário colorido, sequência e dias perfeitos. No fim você pode editar/estender ou criar outro desafio, e os anteriores ficam no histórico.
 - **Meu ciclo**: roda do ciclo, previsão da próxima menstruação, período fértil, ovulação e chance de engravidar; botão "minha menstruação desceu hoje", calendário editável e registro de fluxo, sintomas e humor. As previsões são estimativas e não servem como método contraceptivo.
 - **Remédios**: horários, quantidade em cada horário (ex.: Ômega 3, 3 cápsulas que podem ser tomadas separadas), botão "+1 agora", histórico e informações. Os horários entram na rotina do dia.
-- **Água**: botões de 200 ml, 500 ml e 1 L, meta diária (padrão 3 L) ajustável em Mais.
+- **Água**: escolha quantos ml tomou (100 ml a 1000 ml, ou outro valor) e vá completando até a meta (padrão 3000 ml, ajustável em Mais).
+- **Estudo**: cronômetro, matéria, assunto, fonte (IA, pós-graduação, curso ou outra), onde parei, até dois horários na rotina e histórico com botão "Retomar".
 - **Personalizar (em Mais)**: nome, 4 layouts (Rosa, Lavanda, Céu, Minimalista), tema claro/escuro, abas do menu (escolher, renomear, reordenar) e blocos da tela inicial.
 - **Backup**: em Mais → Perfil e backup.
 

@@ -21,6 +21,7 @@ export const TASK_TYPES = {
   skincare: 'Skincare',
   cabelo: 'Cronograma capilar (só nos dias de lavar)',
   leitura: 'Leitura com cronômetro',
+  estudo: 'Estudo com cronômetro',
 };
 
 export const COLORS = ['rose', 'violet', 'amber', 'sky', 'emerald', 'orange', 'pink', 'slate'];
@@ -43,7 +44,7 @@ export function defaultState() {
       { id: 'r-academia', time: '06:10', title: 'Academia', icon: '🏋️‍♀️', color: 'rose', days: [1, 2, 3, 4, 5, 6], type: 'treino' },
       { id: 'r-cabelo', time: '07:30', title: 'Cronograma capilar', icon: '💇‍♀️', color: 'pink', days: ALL, type: 'cabelo' },
       { id: 'r-skin-am', time: '07:50', title: 'Skincare da manhã', icon: '🧴', color: 'emerald', days: ALL, type: 'skincare', routineKey: 'am' },
-      { id: 'r-estudo', time: '08:00', end: '10:00', title: 'Estudar (2h)', icon: '📚', color: 'sky', days: WEEKDAYS, type: 'normal' },
+      { id: 'r-estudo', time: '08:00', end: '10:00', title: 'Estudar (2h)', icon: '📚', color: 'sky', days: WEEKDAYS, type: 'estudo' },
       { id: 'r-trabalho', time: '10:00', end: '20:00', title: 'Trabalhar', icon: '💻', color: 'slate', days: WEEKDAYS, type: 'normal' },
       { id: 'r-leitura', time: '13:00', title: 'Leitura', icon: '📖', color: 'orange', days: ALL, type: 'leitura' },
       { id: 'r-casa', time: '20:15', title: 'Arrumar a casa', icon: '🧹', color: 'emerald', days: ALL, type: 'normal' },
@@ -140,6 +141,8 @@ export function defaultState() {
     ],
     medLog: {},
 
+    study: { sessions: [], timer: { running: false, startedAt: null, acc: 0 } },
+
     settings: {
       layout: 'rosa', // rosa | lavanda | ceu | minimal
       theme: 'auto', // auto | light | dark
@@ -180,6 +183,7 @@ export const TAB_DEFS = {
   cuidados: { label: 'Cuidados', icon: 'heart' },
   ciclo: { label: 'Ciclo', icon: 'flower' },
   remedios: { label: 'Remédios', icon: 'pill' },
+  estudo: { label: 'Estudo', icon: 'books' },
   treinos: { label: 'Treinos', icon: 'dumbbell' },
   rotina: { label: 'Rotina', icon: 'calendar' },
   mais: { label: 'Mais', icon: 'dots' },

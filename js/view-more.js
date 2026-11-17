@@ -24,11 +24,12 @@ function renderMore() {
     ${item('#/abas', '📱', 'Abas do menu', state.settings.tabs.map((t) => t.label).join(', ') || 'só Hoje e Mais', 'rose')}
     ${item('#/inicio-config', '🧩', 'Tela inicial', 'Mostrar, esconder e reordenar os blocos', 'sky')}
     <div class="menu-item"><span class="t-icon bg-soft-sky">💧</span><div class="grow"><b>Meta de água</b><small>por dia</small></div>
-      <select class="mini-select" data-change="waterGoal">${[1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000].map((v) => opt(v, `${(v / 1000).toLocaleString('pt-BR')} L`, goal)).join('')}</select></div>
+      <select class="mini-select" data-change="waterGoal">${[1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000].map((v) => opt(v, `${v} ml`, goal)).join('')}</select></div>
   </section>
   <h3 class="sec-title">Organizar</h3>
   <section class="card menu">
     ${item('#/ciclo', '🌸', 'Meu ciclo', 'Menstruação, período fértil e ovulação', 'pink')}
+    ${item('#/estudo', '📚', 'Estudo', 'Cronômetro, matérias, onde parei e histórico', 'sky')}
     ${item('#/remedios', '💊', 'Remédios', 'Horários, doses e informações', 'violet')}
     ${item('#/rotina', '🗓️', 'Rotina fixa', 'Horários, dias da semana e tarefas da casa', 'violet')}
     ${item('#/treinos', '🏋️‍♀️', 'Treinos', 'Plano da semana e exercícios', 'rose')}
@@ -60,7 +61,7 @@ A.setLayout = (el) => { state.settings.layout = el.dataset.l; save(); rerender()
 A.setTheme = (el) => { state.settings.theme = el.dataset.t; save(); rerender(); };
 
 /* ---------- Abas ---------- */
-const OPTIONAL_TABS = ['desafio', 'leitura', 'cuidados', 'ciclo', 'remedios', 'treinos', 'rotina'];
+const OPTIONAL_TABS = ['desafio', 'estudo', 'leitura', 'cuidados', 'ciclo', 'remedios', 'treinos', 'rotina'];
 function renderTabs() {
   const on = state.settings.tabs;
   const off = OPTIONAL_TABS.filter((id) => !on.some((t) => t.id === id));

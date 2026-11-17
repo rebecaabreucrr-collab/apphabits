@@ -1,9 +1,9 @@
 // Service worker: o app funciona offline e atualiza sozinho quando houver internet.
-const CACHE = 'minharotina-v3';
+const CACHE = 'minharotina-v4';
 const ASSETS = [
   './', './index.html', './manifest.webmanifest', './css/styles.css',
   './js/app.js', './js/utils.js', './js/store.js', './js/defaults.js', './js/logic.js', './js/ui.js', './js/forms.js',
-  './js/view-today.js', './js/view-care.js', './js/view-reading.js', './js/view-challenge.js', './js/view-more.js', './js/cycle.js', './js/view-cycle.js', './js/icons.js', './js/view-meds.js',
+  './js/view-today.js', './js/view-care.js', './js/view-reading.js', './js/view-challenge.js', './js/view-more.js', './js/cycle.js', './js/view-cycle.js', './js/icons.js', './js/view-meds.js', './js/view-study.js',
   './icons/apple-touch-icon.png', './icons/icon-192.png', './icons/icon-512.png',
 ];
 
