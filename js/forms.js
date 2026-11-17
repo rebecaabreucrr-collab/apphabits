@@ -121,3 +121,29 @@ export const productOptions = (sel, { allowNone = true, cat } = {}) => {
 
 A.noop = () => {};
 export { closeSheet, rerender };
+
+/** avatar: foto da pessoa ou a inicial do nome */
+export function avatarHtml(cls = '', href = '') {
+  const p = state.profile;
+  const inner = p.photo ? `<img src="${p.photo}" alt="">` : esc((p.name || '✨').trim().slice(0, 1).toUpperCase());
+  return href ? `<a class="avatar ${cls} ${p.photo ? 'has-photo' : ''}" href="${href}" aria-label="Perfil">${inner}</a>`
+    : `<span class="avatar ${cls} ${p.photo ? 'has-photo' : ''}">${inner}</span>`;
+}
+
+/** reduz a foto para um quadrado pequeno (cabe no armazenamento do celular) */
+export function photoToDataUrl(file, size = 320) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const s = Math.min(img.naturalWidth, img.naturalHeight);
+      const c = document.createElement('canvas');
+      c.width = c.height = size;
+      c.getContext('2d').drawImage(img, (img.naturalWidth - s) / 2, (img.naturalHeight - s) / 2, s, s, 0, 0, size, size);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Não consegui abrir essa foto.')); };
+    img.src = url;
+  });
+}

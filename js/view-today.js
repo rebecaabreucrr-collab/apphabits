@@ -7,8 +7,8 @@ import { tasksFor, isDone, toggleDone, dayProgress, findTask, hairDay, workoutFo
   medPerDay, medTaken } from './logic.js';
 import { cycleWheel } from './view-cycle.js';
 import { studyDay } from './view-study.js';
-import { MASKS } from './defaults.js';
-import { taskSheet } from './forms.js';
+import { MASKS, PHRASES } from './defaults.js';
+import { taskSheet, avatarHtml } from './forms.js';
 import { bar } from './ui.js';
 import { cycleStats, predictions, dayInfo as cycleDayInfo, cycleSummary, PHASES } from './cycle.js';
 
@@ -89,7 +89,7 @@ function weekStrip(k) {
     const d = addDays(ws, i);
     const p = d <= today ? dayProgress(d).pct : 0;
     const ph = cycleDayInfo(d, st, pred).phase;
-    const dot = ['menstruacao', 'prevista', 'fertil', 'ovulacao'].includes(ph) ? `<i class="cdot cd-${PHASES[ph].color}" title="${PHASES[ph].label}"></i>` : '<i class="cdot"></i>';
+    const dot = !state.settings.home.showWeekCycle ? '' : ['menstruacao', 'prevista', 'fertil', 'ovulacao'].includes(ph) ? `<i class="cdot cd-${PHASES[ph].color}" title="${PHASES[ph].label}"></i>` : '<i class="cdot"></i>';
     html += `<button class="wday2 ${d === k ? 'sel' : ''} ${d === today ? 'today' : ''} ${d > today ? 'future' : ''}" data-act="pickDay" data-d="${d}">
       <small>${WD[parseKey(d).getDay()]}</small>${miniRing(p, 38, 4, parseKey(d).getDate(), p >= 1 ? 'full' : '')}${dot}</button>`;
   }
@@ -145,42 +145,95 @@ function waterCard(k) {
   </section>`;
 }
 
-function tiles(k) {
-  const out = [];
+function tileMap(k) {
+  const T = {};
   const c = activeChallenge();
   if (c) {
     const d = challengeDay(c, k);
     const inRange = d >= 1 && d <= c.days;
-    out.push(`<a class="tile t-violet" href="#/desafio">${miniRing(inRange ? dayScore(c, k) : 0, 54, 6, inRange ? `${Math.round(dayScore(c, k) * 100)}%` : '🎯', 'tile-ring')}
-      <div><b>${inRange ? `Dia ${d}/${c.days}` : d < 1 ? 'Em breve' : 'Concluído'}</b><small>Desafio</small></div></a>`);
-  } else out.push(`<a class="tile t-violet" href="#/desafio"><span class="tile-ico">🎯</span><div><b>Criar desafio</b><small>20 dias</small></div></a>`);
+    T.desafio = `<a class="tile t-violet" href="#/desafio">${miniRing(inRange ? dayScore(c, k) : 0, 54, 6, inRange ? `${Math.round(dayScore(c, k) * 100)}%` : '🎯', 'tile-ring')}
+      <div><b>${inRange ? `Dia ${d}/${c.days}` : d < 1 ? 'Em breve' : 'Concluído'}</b><small>Desafio</small></div></a>`;
+  } else T.desafio = `<a class="tile t-violet" href="#/desafio"><span class="tile-ico">🎯</span><div><b>Criar desafio</b><small>20 dias</small></div></a>`;
   const w = workoutFor(k);
   const wl = state.workoutLog[k];
   const wn = w && wl ? w.exercises.filter((e) => wl.ex[e.id]).length : 0;
-  out.push(`<a class="tile t-rose" href="#/treino?d=${k}"><span class="tile-ico">🏋️‍♀️</span><div><b>${w ? esc(w.name) : 'Descanso'}</b>
-    <small>${w ? `${wn}/${w.exercises.length} exercícios` : 'sem treino hoje'}</small>${w ? bar(wn / (w.exercises.length || 1)) : ''}</div></a>`);
+  T.treino = `<a class="tile t-rose" href="#/treino?d=${k}"><span class="tile-ico">🏋️‍♀️</span><div><b>${w ? esc(w.name) : 'Descanso'}</b>
+    <small>${w ? `${wn}/${w.exercises.length} exercícios` : 'sem treino hoje'}</small>${w ? bar(wn / (w.exercises.length || 1)) : ''}</div></a>`;
   const meds = state.meds.filter((m) => m.active);
   if (meds.length) {
     const tot = meds.reduce((a, m) => a + medPerDay(m), 0), tk = meds.reduce((a, m) => a + Math.min(medTaken(k, m.id), medPerDay(m)), 0);
-    out.push(`<a class="tile t-sky" href="#/remedios"><span class="tile-ico">💊</span><div><b>${tk}/${tot} doses</b><small>Remédios</small>${bar(tot ? tk / tot : 0)}</div></a>`);
+    T.remedios = `<a class="tile t-sky" href="#/remedios"><span class="tile-ico">💊</span><div><b>${tk}/${tot} doses</b><small>Remédios</small>${bar(tot ? tk / tot : 0)}</div></a>`;
   }
   const nw = nextWashes(k, 1)[0];
-  if (nw) out.push(`<a class="tile t-sky" href="#/cabelo?d=${nw.date}"><span class="tile-ico">${MASKS[nw.mask].icon}</span><div>
-    <b>${nw.date === k ? 'Lavar hoje' : fmtRel(nw.date, k).replace(/ \(.*\)/, '')}</b><small>Cabelo · ${MASKS[nw.mask].label}</small></div></a>`);
+  if (nw) T.cabelo = `<a class="tile t-sky" href="#/cabelo?d=${nw.date}"><span class="tile-ico">${MASKS[nw.mask].icon}</span><div>
+    <b>${nw.date === k ? 'Lavar hoje' : fmtRel(nw.date, k).replace(/ \(.*\)/, '')}</b><small>Cabelo · ${MASKS[nw.mask].label}</small></div></a>`;
   const st = studyDay(k);
   const lastSt = [...state.study.sessions].sort((a, b) => (b.date + (b.start || '')).localeCompare(a.date + (a.start || '')))[0];
-  out.push(`<a class="tile t-sky" href="#/estudo"><span class="tile-ico">📚</span><div><b>${fmtMinutes(st / 60)} de estudo</b>
-    <small>${lastSt ? esc(lastSt.materia) : 'Estudo de hoje'}</small></div></a>`);
+  T.estudo = `<a class="tile t-sky" href="#/estudo"><span class="tile-ico">📚</span><div><b>${fmtMinutes(st / 60)} de estudo</b>
+    <small>${lastSt ? esc(lastSt.materia) : 'Estudo de hoje'}</small></div></a>`;
   const r = readingDay(k);
   const b = state.books.find((x) => x.id === state.reading.activeBookId);
   const bp = b && b.pages ? (b.current || 0) / b.pages : 0;
-  out.push(`<a class="tile t-orange" href="#/leitura"><span class="tile-ico">📖</span><div><b>${fmtMinutes(r.sec / 60)} · ${r.pages} pág.</b>
-    <small>${b ? `${esc(b.title)} · ${Math.round(bp * 100)}%` : 'Leitura de hoje'}</small>${b ? bar(bp) : ''}</div></a>`);
+  T.leitura = `<a class="tile t-orange" href="#/leitura"><span class="tile-ico">📖</span><div><b>${fmtMinutes(r.sec / 60)} · ${r.pages} pág.</b>
+    <small>${b ? `${esc(b.title)} · ${Math.round(bp * 100)}%` : 'Leitura de hoje'}</small>${b ? bar(bp) : ''}</div></a>`;
   const sk = (key) => { const rr = state.skincare[key]; const l = peekSkin(k, key); return [l ? rr.steps.filter((s) => l.steps[s.id]).length : 0, rr.steps.length]; };
   const [a1, a2] = sk('am'), [p1, p2] = sk('pm');
-  out.push(`<a class="tile t-emerald" href="#/skincare?r=${nowMin() >= 15 * 60 && k === dateKey() ? 'pm' : 'am'}&d=${k}"><span class="tile-ico">🧴</span><div><b>Skincare</b>
-    <small>☀️ ${a1}/${a2} · 🌙 ${p1}/${p2}</small>${bar((a1 + p1) / ((a2 + p2) || 1))}</div></a>`);
-  return `<div class="tiles">${out.join('')}</div>`;
+  T.skincare = `<a class="tile t-emerald" href="#/skincare?r=${nowMin() >= 15 * 60 && k === dateKey() ? 'pm' : 'am'}&d=${k}"><span class="tile-ico">🧴</span><div><b>Skincare</b>
+    <small>☀️ ${a1}/${a2} · 🌙 ${p1}/${p2}</small>${bar((a1 + p1) / ((a2 + p2) || 1))}</div></a>`;
+  const wt = waterTotal(k);
+  T.agua = `<a class="tile t-sky" href="#/hoje"><span class="tile-ico">💧</span><div><b>${wt} ml</b><small>de ${state.water.goal} ml de água</small>${bar(wt / state.water.goal)}</div></a>`;
+  const cs = cycleSummary(dateKey());
+  T.ciclo = cs.empty ? `<a class="tile t-rose" href="#/ciclo"><span class="tile-ico">🌸</span><div><b>Meu ciclo</b><small>registrar</small></div></a>`
+    : `<a class="tile t-rose" href="#/ciclo"><span class="tile-ico">🌸</span><div><b>${cs.inPeriod ? `${cs.title} ${cs.sub}` : `Menstruação em ${cs.title}`}</b><small>${cs.fertileText}</small></div></a>`;
+  return T;
+}
+
+function tiles(k) {
+  const H = state.settings.home;
+  const T = tileMap(k);
+  const list = H.cards.filter((c) => c.on && T[c.id]).map((c) => T[c.id]);
+  if (!list.length) return '';
+  return `<div class="tiles ${H.cardsLayout === 'lista' ? 'as-list' : ''}">${list.join('')}</div>`;
+}
+
+/* quadrado da direita (escolhido em Mais → Tela inicial) */
+function sideSquare(k) {
+  const kind = state.settings.home.square2 || 'ciclo';
+  const sq = (href, title, sub, inner, foot, cls = '') => `<a class="square sq-alt ${cls}" href="${href}"><div class="sq-head"><span>${title}</span><small>${sub}</small></div>${inner}<small class="sq-foot">${foot}</small></a>`;
+  if (kind === 'agua') {
+    const t = waterTotal(k), g = state.water.goal;
+    return sq('#/hoje', 'Água', `meta ${g} ml`, ring(t / g, { size: 104, stroke: 10, label: `${t}`, sub: 'ml', cls: 'water-ring' }), t >= g ? 'Meta batida! 💜' : `faltam ${g - t} ml`);
+  }
+  if (kind === 'desafio') {
+    const c = activeChallenge();
+    if (!c) return sq('#/desafio', 'Desafio', '', '<div class="sq-empty">🎯<b>Criar desafio</b></div>', '');
+    const d = challengeDay(c, k), sc = d >= 1 && d <= c.days ? dayScore(c, k) : 0;
+    return sq('#/desafio', 'Desafio', d >= 1 && d <= c.days ? `dia ${d}/${c.days}` : '', ring(sc, { size: 104, stroke: 10, label: `${Math.round(sc * 100)}%`, sub: 'hoje' }), esc(c.name));
+  }
+  if (kind === 'leitura') {
+    const b = state.books.find((x) => x.id === state.reading.activeBookId);
+    const r = readingDay(k);
+    const bp = b && b.pages ? (b.current || 0) / b.pages : 0;
+    return sq('#/leitura', 'Leitura', fmtMinutes(r.sec / 60) + ' hoje', ring(bp, { size: 104, stroke: 10, label: `${Math.round(bp * 100)}%`, sub: 'do livro' }), b ? esc(b.title) : 'Escolha um livro');
+  }
+  if (kind === 'estudo') {
+    const sec = studyDay(k);
+    const goal = 120 * 60;
+    return sq('#/estudo', 'Estudo', 'meta 2h', ring(sec / goal, { size: 104, stroke: 10, label: fmtMinutes(sec / 60), sub: 'hoje' }), 'Toque para estudar');
+  }
+  if (kind === 'remedios') {
+    const meds = state.meds.filter((m) => m.active);
+    const tot = meds.reduce((a, m) => a + medPerDay(m), 0), tk = meds.reduce((a, m) => a + Math.min(medTaken(k, m.id), medPerDay(m)), 0);
+    return sq('#/remedios', 'Remédios', '', ring(tot ? tk / tot : 0, { size: 104, stroke: 10, label: `${tk}/${tot}`, sub: 'doses' }), tk >= tot ? 'Tudo tomado 💜' : `falta${tot - tk > 1 ? 'm' : ''} ${tot - tk}`);
+  }
+  return cycleSquare();
+}
+
+function phraseCard(k) {
+  const H = state.settings.home;
+  const list = H.phrase.trim() ? H.phrase.split('\n').map((x) => x.trim()).filter(Boolean) : PHRASES;
+  const day = Math.floor(parseKey(k).getTime() / 86400000);
+  return `<section class="card phrase-card">✨ <p>${esc(list[day % list.length])}</p></section>`;
 }
 
 const GROUPS = [
@@ -216,9 +269,11 @@ export function renderToday() {
   const highlightId = k === today ? (tasks.find((t) => t.end && toMin(t.time) <= m && m < toMin(t.end))
     || tasks.find((t) => t.time && toMin(t.time) > m))?.id : null;
   const initial = (state.profile.name || '✨').trim().slice(0, 1).toUpperCase();
+  const H = state.settings.home;
   const f = ui.taskFilter;
-  const shown = f ? tasks.filter((t) => taskStatus(t, k) === f) : tasks;
-  const groups = GROUPS.map(([label, icon, fn]) => {
+  let shown = f ? tasks.filter((t) => taskStatus(t, k) === f) : tasks;
+  if (H.hideDone && f !== 'done') shown = shown.filter((t) => !isDone(t, k));
+  const groups = !H.groupRoutine ? `<ul class="timeline">${shown.map((t) => taskRow(t, k, t.id === highlightId)).join('')}</ul>` : GROUPS.map(([label, icon, fn]) => {
     const list = shown.filter(fn);
     if (!list.length) return '';
     const d = list.filter((t) => isDone(t, k)).length;
@@ -226,14 +281,16 @@ export function renderToday() {
       <ul class="timeline">${list.map((t) => taskRow(t, k, t.id === highlightId)).join('')}</ul></div>`;
   }).join('');
   const blocks = {
-    resumo: `<div class="squares">${habitsSquare(k, tasks)}${cycleSquare()}</div>`,
+    frase: phraseCard(k),
+    resumo: `<div class="squares">${habitsSquare(k, tasks)}${sideSquare(k)}</div>`,
     semana: weekStrip(k),
     agua: waterCard(k),
     cards: tiles(k),
     rotina: `<section class="card" id="rotina-card">
       <div class="card-head"><h2>Rotina do dia</h2><button class="link" data-act="addTask">+ Adicionar</button></div>
-      <div class="seg filter-seg">${[['', 'Todas'], ...Object.entries(FILTERS)].map(([key, l]) => `<button class="${(f || '') === key ? 'on' : ''}" data-act="taskFilter" data-f="${key}">${l}</button>`).join('')}</div>
-      ${shown.length ? groups : f ? `<p class="muted center small">Nenhuma tarefa ${FILTERS[f].toLowerCase()} ${k === today ? 'hoje' : 'neste dia'} 💜</p>` : empty('🌤️', 'Nada por aqui', 'Adicione tarefas para este dia.')}
+      ${H.showFilters ? `<div class="seg filter-seg">${[['', 'Todas'], ...Object.entries(FILTERS)].map(([key, l]) => `<button class="${(f || '') === key ? 'on' : ''}" data-act="taskFilter" data-f="${key}">${l}</button>`).join('')}</div>` : ''}
+      ${shown.length ? groups : f ? `<p class="muted center small">Nenhuma tarefa ${FILTERS[f].toLowerCase()} ${k === today ? 'hoje' : 'neste dia'} 💜</p>`
+        : tasks.length ? '<p class="muted center small">Tudo concluído por aqui 💜</p>' : empty('🌤️', 'Nada por aqui', 'Adicione tarefas para este dia.')}
     </section>`,
     desafio: challengeCard(k),
   };
@@ -241,7 +298,7 @@ export function renderToday() {
   <header class="dash-top">
     <div><p class="hello2">${k === today ? greeting() + name : 'Planejamento'} ${k === today ? '☀️' : '🗓️'}</p>
     <h1 class="date-title2">${fmtLong(k)}</h1></div>
-    ${k !== today ? `<button class="btn small primary" data-act="pickDay" data-d="${today}">Hoje</button>` : `<a class="avatar" href="#/mais" aria-label="Perfil">${esc(initial)}</a>`}
+    ${k !== today ? `<button class="btn small primary" data-act="pickDay" data-d="${today}">Hoje</button>` : avatarHtml('', '#/mais')}
   </header>
   ${state.settings.dash.filter((x) => x.on).map((x) => blocks[x.id] || '').join('')}
   <button class="fab" data-act="addTask" aria-label="Adicionar tarefa">+</button>`;

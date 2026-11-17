@@ -69,6 +69,7 @@ const P = {
   palette: '<path d="M12 3.5a8.5 8.5 0 0 0 0 17c1.2 0 1.8-.8 1.5-1.8-.4-1.2.3-2.2 1.6-2.2h1.8a3.6 3.6 0 0 0 3.6-3.6C20.5 7.3 16.7 3.5 12 3.5z"/><circle cx="8" cy="11" r="1"/><circle cx="11" cy="7.5" r="1"/><circle cx="15.5" cy="8" r="1"/>',
   home: '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>',
   dots: '<circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/>',
+  camera: '<path d="M4 8h3l1.5-2.5h7L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
   x: '<path d="M6 6l12 12M18 6 6 18"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
 };
@@ -83,7 +84,7 @@ const EMOJI = {
   '🚀': 'rocket', '🔄': 'refresh', '✏️': 'pencil', '🗓️': 'calendar', '⚙️': 'gear', '📲': 'mobile', '⬇︎': 'download', '⬆︎': 'upload',
   '⬇': 'download', '⬆': 'upload', '⏸': 'pause', '⏹': 'stop', '▶︎': 'play', '▶': 'play', '⏱️': 'timer', '📄': 'page', '📕': 'book',
   '📌': 'pin', '🌅': 'sunrise', '🕐': 'clock', '⏳': 'hourglass', '🌤️': 'cloud', '🥤': 'glass', '👤': 'user', '🎨': 'palette',
-  '🧩': 'grid', '📱': 'mobile', '🏠': 'home', '💦': 'drop', '🫶': 'heart', '💜': 'heart', '💗': 'heart', '🔔': 'clock', '⏰': 'clock', 'ℹ️': 'note',
+  '🧩': 'grid', '📱': 'mobile', '🏠': 'home', '💦': 'drop', '🫶': 'heart', '💜': 'heart', '💗': 'heart', '🔔': 'clock', '📷': 'camera', '📸': 'camera', '⏰': 'clock', 'ℹ️': 'note',
 };
 
 const RE = /\p{Extended_Pictographic}(?:️|︎|‍(?:\p{Extended_Pictographic}|[♀♂])️?|[\u{1F3FB}-\u{1F3FF}])*/gu;

@@ -2,8 +2,8 @@
 import { state, save, replaceState, resetState } from './store.js';
 import { esc, WD, WD_FULL, dateKey, uid } from './utils.js';
 import { A, C, ui, sheet, rerender, toast, pageHead, opt, confirmSheet, go } from './ui.js';
-import { taskSheet } from './forms.js';
-import { COLORS, TASK_TYPES, LAYOUTS, TAB_DEFS, DASH_NAMES } from './defaults.js';
+import { taskSheet, avatarHtml, photoToDataUrl } from './forms.js';
+import { COLORS, TASK_TYPES, LAYOUTS, TAB_DEFS, DASH_NAMES, CARD_NAMES, SQUARE_NAMES, defaultHome, defaultState } from './defaults.js';
 import { svg } from './icons.js';
 import { toMin } from './utils.js';
 
@@ -15,14 +15,18 @@ function renderMore() {
   const goal = state.water.goal;
   return `<header class="page-head top"><h1>Mais</h1></header>
   <section class="card profile-card">
-    <span class="avatar big">${esc((state.profile.name || '✨').slice(0, 1).toUpperCase())}</span>
+    <div class="photo-wrap">
+      <label class="photo-pick" aria-label="Escolher foto">${avatarHtml('big')}<span class="photo-badge">📷</span>
+        <input type="file" accept="image/*" data-change="profilePhoto" hidden></label>
+      ${state.profile.photo ? '<button class="link small" data-act="photoRemove">Remover foto</button>' : '<small>Toque para pôr sua foto</small>'}
+    </div>
     <label class="field grow"><span>Seu nome (aparece no "Bom dia")</span><input value="${esc(state.profile.name)}" data-change="profileName" placeholder="Seu nome"></label>
   </section>
   <h3 class="sec-title">Personalizar</h3>
   <section class="card menu">
     ${item('#/aparencia', '🎨', 'Layout e cores', `${L.name} · ${{ auto: 'tema automático', light: 'tema claro', dark: 'tema escuro' }[state.settings.theme]}`, 'violet')}
     ${item('#/abas', '📱', 'Abas do menu', state.settings.tabs.map((t) => t.label).join(', ') || 'só Hoje e Mais', 'rose')}
-    ${item('#/inicio-config', '🧩', 'Tela inicial', 'Mostrar, esconder e reordenar os blocos', 'sky')}
+    ${item('#/inicio-config', '🧩', 'Tela inicial', 'Blocos, quadrado, cards, frase e rotina', 'sky')}
     <div class="menu-item"><span class="t-icon bg-soft-sky">💧</span><div class="grow"><b>Meta de água</b><small>por dia</small></div>
       <select class="mini-select" data-change="waterGoal">${[1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000].map((v) => opt(v, `${v} ml`, goal)).join('')}</select></div>
   </section>
@@ -44,6 +48,12 @@ function renderMore() {
   </section>
   <p class="center small muted">Minha Rotina · seus dados ficam salvos só neste aparelho</p>`;
 }
+C.profilePhoto = async (el) => {
+  const f = el.files?.[0]; if (!f) return;
+  try { state.profile.photo = await photoToDataUrl(f); save(); toast('Foto salva 💜'); rerender(); }
+  catch (e) { toast(e.message); }
+};
+A.photoRemove = () => confirmSheet('Remover foto?', 'Volta a aparecer a inicial do seu nome.', 'Remover', () => { delete state.profile.photo; save(); });
 C.waterGoal = (el) => { state.water.goal = Number(el.value); save(); toast('Meta de água atualizada'); rerender(); };
 
 /* ---------- Aparência ---------- */
@@ -90,16 +100,60 @@ C.tabLabel = (el) => { const t = state.settings.tabs[Number(el.dataset.i)]; t.la
 A.tabsReset = () => { state.settings.tabs = ['desafio', 'leitura', 'cuidados'].map((id) => ({ id, label: TAB_DEFS[id].label })); save(); rerender(); };
 
 /* ---------- Tela inicial ---------- */
+const sw = (key, label, sub = '') => `<label class="toggle-row"><span><b>${label}</b>${sub ? `<small>${sub}</small>` : ''}</span>
+  <input type="checkbox" class="switch" data-change="homeFlag" data-k="${key}" ${state.settings.home[key] ? 'checked' : ''}></label>`;
 function renderHomeCfg() {
   const d = state.settings.dash;
+  const H = state.settings.home;
   return `${pageHead('Tela inicial', '#/mais')}
-  <p class="sub">Escolha o que aparece na tela "Hoje" e em que ordem.</p>
+  <p class="sub">Deixe a tela "Hoje" do seu jeito. Tudo muda na hora.</p>
+
+  <h3 class="sec-title">Blocos e ordem</h3>
   <ul class="list">${d.map((x, i) => `<li><label class="toggle-line grow"><input type="checkbox" data-change="dashToggle" data-i="${i}" ${x.on ? 'checked' : ''}><span><b>${DASH_NAMES[x.id]}</b></span></label>
     <div class="reorder"><button class="icon-btn sm" data-act="dashMove" data-i="${i}" data-n="-1" aria-label="Subir">↑</button>
-    <button class="icon-btn sm" data-act="dashMove" data-i="${i}" data-n="1" aria-label="Descer">↓</button></div></li>`).join('')}</ul>`;
+    <button class="icon-btn sm" data-act="dashMove" data-i="${i}" data-n="1" aria-label="Descer">↓</button></div></li>`).join('')}</ul>
+
+  <h3 class="sec-title">Quadrado ao lado de Hábitos</h3>
+  <section class="card"><div class="chips">${Object.entries(SQUARE_NAMES).map(([k, l]) =>
+    `<button class="chip ${H.square2 === k ? 'on' : ''}" data-act="homeSquare" data-k="${k}">${l}</button>`).join('')}</div></section>
+
+  <h3 class="sec-title">Frase do dia</h3>
+  <section class="card">
+    ${d.find((x) => x.id === 'frase')?.on ? '' : '<p class="small muted">Ative "Frase do dia" em Blocos para ela aparecer.</p>'}
+    <label class="field"><span>Suas frases (uma por linha). Em branco, o app usa frases prontas.</span>
+      <textarea rows="4" data-change="homePhrase" placeholder="Ex.: Eu sou capaz! 💜">${esc(H.phrase)}</textarea></label>
+  </section>
+
+  <h3 class="sec-title">Cards de resumo</h3>
+  <section class="card">
+    <div class="seg">${[['grid', 'Grade (2 colunas)'], ['lista', 'Lista']].map(([k, l]) => `<button class="${H.cardsLayout === k ? 'on' : ''}" data-act="homeLayout" data-k="${k}">${l}</button>`).join('')}</div>
+    <ul class="mini-list">${H.cards.map((c, i) => `<li class="row-li"><label class="toggle-line grow"><input type="checkbox" data-change="cardToggle" data-i="${i}" ${c.on ? 'checked' : ''}><span>${CARD_NAMES[c.id]}</span></label>
+      <button class="icon-btn sm" data-act="cardMove" data-i="${i}" data-n="-1" aria-label="Subir">↑</button>
+      <button class="icon-btn sm" data-act="cardMove" data-i="${i}" data-n="1" aria-label="Descer">↓</button></li>`).join('')}</ul>
+  </section>
+
+  <h3 class="sec-title">Rotina do dia</h3>
+  <section class="card">
+    ${sw('groupRoutine', 'Separar por manhã, tarde e noite')}
+    ${sw('hideDone', 'Esconder tarefas já feitas', 'a lista fica só com o que falta')}
+    ${sw('showFilters', 'Mostrar botões Todas / Feitas / Pendentes / Atrasadas')}
+    ${sw('showWeekCycle', 'Mostrar fases do ciclo na semana', 'bolinhas de menstruação e período fértil')}
+  </section>
+  <button class="btn ghost block" data-act="homeReset">Voltar ao padrão</button>`;
 }
 C.dashToggle = (el) => { state.settings.dash[Number(el.dataset.i)].on = el.checked; save(); };
 A.dashMove = (el) => { const l = state.settings.dash; const i = Number(el.dataset.i), j = i + Number(el.dataset.n); if (j < 0 || j >= l.length) return; [l[i], l[j]] = [l[j], l[i]]; save(); rerender(); };
+C.homeFlag = (el) => { state.settings.home[el.dataset.k] = el.checked; save(); };
+A.homeSquare = (el) => { state.settings.home.square2 = el.dataset.k; save(); rerender(); toast(`Quadrado: ${SQUARE_NAMES[el.dataset.k]}`); };
+C.homePhrase = (el) => { state.settings.home.phrase = el.value; save(); toast('Frases salvas'); };
+A.homeLayout = (el) => { state.settings.home.cardsLayout = el.dataset.k; save(); rerender(); };
+C.cardToggle = (el) => { state.settings.home.cards[Number(el.dataset.i)].on = el.checked; save(); };
+A.cardMove = (el) => { const l = state.settings.home.cards; const i = Number(el.dataset.i), j = i + Number(el.dataset.n); if (j < 0 || j >= l.length) return; [l[i], l[j]] = [l[j], l[i]]; save(); rerender(); };
+A.homeReset = () => confirmSheet('Voltar ao padrão?', 'A tela inicial volta a ter os blocos e cards originais.', 'Voltar ao padrão', () => {
+  state.settings.home = defaultHome();
+  state.settings.dash = defaultState().settings.dash;
+  save();
+}, false);
 
 /* ---------- Rotina fixa ---------- */
 function renderRoutine() {

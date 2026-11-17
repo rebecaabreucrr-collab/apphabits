@@ -1,5 +1,5 @@
 // Persistência local (localStorage) — tudo fica salvo no próprio celular.
-import { defaultState } from './defaults.js';
+import { defaultState, defaultHome } from './defaults.js';
 
 const KEY = 'minharotina.v1';
 export let state;
@@ -22,9 +22,13 @@ function migrate(s) {
   const est = s.routine.find((r) => r.id === 'r-estudo');
   if (est && est.type === 'normal' && !s.profile.studyMigrated) est.type = 'estudo';
   s.profile.studyMigrated = true;
-  for (const d of ['resumo', 'semana', 'agua', 'cards', 'rotina', 'desafio']) {
-    if (!s.settings.dash.some((x) => x.id === d)) s.settings.dash.push({ id: d, on: true });
+  for (const d of ['resumo', 'semana', 'agua', 'cards', 'rotina', 'desafio', 'frase']) {
+    if (!s.settings.dash.some((x) => x.id === d)) s.settings.dash[d === 'frase' ? 'unshift' : 'push']({ id: d, on: d !== 'frase' });
   }
+  const H = defaultHome();
+  s.settings.home ||= H;
+  for (const k of Object.keys(H)) if (s.settings.home[k] === undefined) s.settings.home[k] = H[k];
+  for (const c of H.cards) if (!s.settings.home.cards.some((x) => x.id === c.id)) s.settings.home.cards.push(c);
 }
 
 // garante que chaves novas existam após atualizações do app

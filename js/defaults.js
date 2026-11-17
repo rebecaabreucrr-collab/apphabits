@@ -147,8 +147,9 @@ export function defaultState() {
       layout: 'rosa', // rosa | lavanda | ceu | minimal
       theme: 'auto', // auto | light | dark
       tabs: [{ id: 'desafio', label: 'Desafio' }, { id: 'leitura', label: 'Leitura' }, { id: 'cuidados', label: 'Cuidados' }],
-      dash: [{ id: 'resumo', on: true }, { id: 'semana', on: true }, { id: 'agua', on: true }, { id: 'cards', on: true },
+      dash: [{ id: 'frase', on: false }, { id: 'resumo', on: true }, { id: 'semana', on: true }, { id: 'agua', on: true }, { id: 'cards', on: true },
         { id: 'rotina', on: true }, { id: 'desafio', on: true }],
+      home: defaultHome(),
     },
 
     cycle: {
@@ -194,7 +195,35 @@ export const LAYOUTS = {
   ceu: { name: 'Céu', desc: 'Azulzinho com lilás' },
   minimal: { name: 'Minimalista', desc: 'Claro, com detalhes rosa' },
 };
+export const CARD_NAMES = {
+  desafio: 'Desafio', treino: 'Treino', remedios: 'Remédios', estudo: 'Estudo', cabelo: 'Cabelo', leitura: 'Leitura', skincare: 'Skincare',
+  agua: 'Água', ciclo: 'Meu ciclo',
+};
+export const SQUARE_NAMES = { ciclo: 'Meu ciclo', agua: 'Água', desafio: 'Desafio', leitura: 'Leitura', estudo: 'Estudo', remedios: 'Remédios' };
+export function defaultHome() {
+  return {
+    square2: 'ciclo',
+    cards: ['desafio', 'treino', 'remedios', 'estudo', 'cabelo', 'leitura', 'skincare', 'agua', 'ciclo']
+      .map((id) => ({ id, on: !['agua', 'ciclo'].includes(id) })),
+    cardsLayout: 'grid',
+    groupRoutine: true,
+    hideDone: false,
+    showFilters: true,
+    phrase: '',
+    showWeekCycle: true,
+  };
+}
+export const PHRASES = [
+  'Pequenos passos todos os dias levam longe. 💜',
+  'Disciplina é lembrar do que você quer. ✨',
+  'Feito é melhor que perfeito.',
+  'Você não precisa ser perfeita, só constante.',
+  'Hoje é um ótimo dia para cuidar de você. 🌸',
+  'Um dia de cada vez, uma tarefa de cada vez.',
+  'O que você faz todo dia importa mais do que o que faz de vez em quando.',
+];
 export const DASH_NAMES = {
-  resumo: 'Hábitos + Meu ciclo (quadrados)', semana: 'Semana', agua: 'Água', cards: 'Cards de resumo',
+  frase: 'Frase do dia',
+  resumo: 'Hábitos + quadrado da direita', semana: 'Semana', agua: 'Água', cards: 'Cards de resumo',
   rotina: 'Rotina do dia', desafio: 'Metas do desafio',
 };
