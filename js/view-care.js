@@ -1,8 +1,8 @@
 // Treino do dia, Skincare, Cronograma capilar e Produtos.
 import { state, save } from './store.js';
-import { esc, dateKey, fmtLong, fmtRel, fmtShort, WD_FULL, weekday, uid, diffDays } from './utils.js';
+import { esc, dateKey, fmtLong, fmtRel, fmtShort, WD_FULL, weekday, uid, diffDays, addDays } from './utils.js';
 import { A, C, ui, check, sheet, go, rerender, toast, empty, pageHead, bar, opt, confirmSheet } from './ui.js';
-import { workoutFor, workoutLog, markTypeDone, hairDay, ensureHairLog, washOn, postponeWash, nextWashes, hairStepsFor,
+import { workoutFor, workoutLog, markTypeDone, hairDay, ensureHairLog, washOn, postponeWash, nextWashes, hairStepsFor, setHairStart, nextScheduled,
   reconstructionsInMonth, skinLog, peekSkin, productUsage, product, productName, tasksFor, isDone } from './logic.js';
 import { MASKS, CATEGORIES } from './defaults.js';
 import { productSheet, productOptions } from './forms.js';
@@ -184,19 +184,21 @@ function hairBody(k, { embedded = false } = {}) {
       <small>Dia de lavar 🚿 ${k === dateKey() ? 'hoje' : fmtShort(k)}</small><h2>${M.icon} ${M.label}</h2>
       <span>${h.mask === 'reconstrucao' ? 'Reconstrução + acidificante · ' : ''}tônico sempre · ${n}/${steps.length}</span>${bar(n / (steps.length || 1), 'light')}
     </section>
-    ${embedded ? `<a class="btn primary block" href="#/cabelo?d=${k}">Abrir passo a passo</a>` : `
+    ${embedded ? `<a class="btn primary block" href="#/cabelo?d=${k}">Abrir passo a passo</a>
+      ${!Object.keys(h.log?.steps || {}).length ? `<button class="btn ghost block" data-act="hairStart" data-d="${addDays(k, 1)}">📅 Não vou lavar hoje — mudar data</button>` : ''}` : `
     <div class="field"><span>Máscara usada neste dia</span><div class="seg">${Object.entries(MASKS).map(([key, m]) =>
       `<button class="${key === h.mask ? 'on' : ''}" data-act="hairMask" data-d="${k}" data-m="${key}">${m.icon} ${m.label}</button>`).join('')}</div></div>
     <ol class="list steps">${steps.map((s) => `<li class="${log.steps[s.id] ? 'done' : ''}">
       ${check(!!log.steps[s.id], 'hairStep', `data-d="${k}" data-s="${s.id}"`, s.label)}
       <div class="grow"><b>${esc(s.label)}</b><small>${esc(productName(s.productId))}</small></div></li>`).join('')}</ol>
     <label class="field"><span>Anotações do cabelo</span><textarea rows="2" data-change="hairNotes" data-d="${k}" placeholder="Ex.: fios mais macios, frizz...">${esc(h.log?.notes || '')}</textarea></label>
-    ${h.scheduled && !h.log ? `<button class="btn ghost block" data-act="hairPostpone" data-d="${k}">Adiar lavagem para amanhã</button>` : ''}`}`;
+    ${!Object.keys(h.log?.steps || {}).length && k >= dateKey() ? `<button class="btn ghost block" data-act="hairStart" data-d="${addDays(k, 1)}">📅 Não vou lavar ${k === dateKey() ? 'hoje' : 'neste dia'} — mudar data</button>` : ''}`}`;
   } else {
     const nx = upcoming[0];
     main = `<section class="card hero-mini bg-grad-slate"><small>${k === dateKey() ? 'Hoje' : fmtShort(k)} não é dia de lavar</small>
       <h2>Próxima: ${nx ? fmtRel(nx.date, k) : '—'}</h2><span>${nx ? `${MASKS[nx.mask].icon} ${MASKS[nx.mask].label}` : ''}</span></section>
-      <button class="btn ghost block" data-act="hairWashNow" data-d="${k}">🚿 Lavei neste dia mesmo assim</button>`;
+      ${k <= dateKey() ? `<button class="btn ghost block" data-act="hairWashNow" data-d="${k}">🚿 Lavei neste dia mesmo assim</button>` : ''}
+      <button class="btn ${k > dateKey() ? 'primary' : 'ghost'} block" data-act="hairStart" data-d="${k > dateKey() ? k : nextScheduled(dateKey())}">📅 ${k > dateKey() ? 'Lavar neste dia' : 'Mudar data da próxima lavagem'}</button>`;
   }
   return `${main}
   <section class="card"><div class="card-head"><h2>Próximas lavagens</h2>${embedded ? '<a class="link" href="#/cabelo-edit">Configurar</a>' : ''}</div>
@@ -210,7 +212,8 @@ function hairHistory() {
   const logs = Object.entries(state.hair.log).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 8);
   if (!logs.length) return '';
   return `<section class="card"><h2>Histórico do cabelo</h2><ul class="mini-list">${logs.map(([k, l]) =>
-    `<li><b>${fmtShort(k)} · ${MASKS[l.mask]?.icon} ${MASKS[l.mask]?.label}</b><small>${Object.values(l.steps || {}).map((v) => esc(productName(v.p))).join(', ') || 'sem passos marcados'}${l.notes ? ' — ' + esc(l.notes) : ''}</small></li>`).join('')}</ul></section>`;
+    `<li><b>${fmtShort(k)} · ${MASKS[l.mask]?.icon} ${MASKS[l.mask]?.label}</b><small>${Object.values(l.steps || {}).map((v) => esc(productName(v.p))).join(', ') || 'sem passos marcados'}${l.notes ? ' — ' + esc(l.notes) : ''}</small>
+      <button class="icon-btn sm" data-act="hairLogDel" data-d="${k}" aria-label="Apagar registro">✕</button></li>`).join('')}</ul></section>`;
 }
 function renderHair(p) {
   const k = q(p, 'd', dateKey());
@@ -234,18 +237,14 @@ function renderHairEdit() {
   const h = state.hair;
   const L = h.cycle.length;
   const perMonth = L ? (30 / h.interval) * (h.cycle.filter((x) => x === 'reconstrucao').length / L) : 0;
-  const nx = nextWashes(dateKey(), 1)[0];
-  const nxIdx = nx ? ((hairDay(nx.date).idx % L) + L) % L : 0;
+  const nxs = nextScheduled(dateKey());
   const whenLabel = { always: 'Toda lavagem', mask: 'Máscara do dia (troca sozinha)', reconstrucao: 'Só na reconstrução', hidratacao: 'Só na hidratação', nutricao: 'Só na nutrição' };
   return `${pageHead('Configurar cabelo', '#/cuidados')}
   <section class="card"><h2>Frequência</h2>
     <label class="field"><span>Lavar a cada quantos dias?</span><select data-change="hairInterval">
       ${[1, 2, 3, 4, 5].map((n) => opt(n, n === 1 ? 'Todo dia' : n === 3 ? '3 dias (1 dia sim, 2 não)' : `${n} dias`, h.interval)).join('')}</select></label>
-    <form class="form" id="anchor-form">
-      <div class="row gap"><label class="field grow"><span>Próxima lavagem</span><input type="date" name="date" value="${nx?.date || dateKey()}"></label>
-      <label class="field grow"><span>Posição no ciclo</span><select name="idx">${h.cycle.map((m, i) => opt(i, `${i + 1}. ${MASKS[m].label}`, nxIdx)).join('')}</select></label></div>
-      <button class="btn ghost block" type="submit">Ajustar cronograma</button>
-    </form>
+    <div class="hair-start"><div><small>Próxima lavagem</small><b>${fmtRel(nxs, dateKey())} · ${MASKS[hairDay(nxs).mask].icon} ${MASKS[hairDay(nxs).mask].label}</b></div>
+      <button class="btn primary block" data-act="hairStart" data-d="${nxs}">📅 Mudar data / começar cronograma</button></div>
   </section>
   <section class="card"><div class="card-head"><h2>Ciclo de máscaras</h2><span class="small muted">≈ ${perMonth.toFixed(1)} reconstruções/mês</span></div>
     <p class="small muted">A cada lavagem o app usa a próxima máscara desta lista e depois recomeça.</p>
@@ -289,14 +288,32 @@ A.hairStepEdit = (el) => {
     },
   });
 };
-document.addEventListener('submit', (e) => {
-  if (e.target.id !== 'anchor-form') return;
-  e.preventDefault();
-  const fd = new FormData(e.target);
-  state.hair.anchorDate = fd.get('date') || dateKey();
-  state.hair.anchorIndex = Number(fd.get('idx')) || 0;
-  save(); toast('Cronograma ajustado'); rerender();
+function hairStartSheet(defDate) {
+  const h = state.hair; const L = h.cycle.length;
+  const info = hairDay(defDate);
+  const cur = ((info.idx % L) + L) % L;
+  sheet('Próxima lavagem', `<form class="form">
+    <p class="muted small">Escolha o dia da próxima lavagem e com qual máscara começa. A partir dela o app conta ${h.interval === 1 ? 'todo dia' : `a cada ${h.interval} dias`} e segue o ciclo.</p>
+    <label class="field"><span>Dia da próxima lavagem</span><input type="date" name="date" required min="${dateKey()}" value="${defDate}"></label>
+    <div class="field"><span>Começa com qual máscara?</span><div class="pick-list">${h.cycle.map((m, i) => `<label class="pick"><input type="radio" name="idx" value="${i}" ${i === cur ? 'checked' : ''}>
+      <span>${MASKS[m].icon} <b>${MASKS[m].label}</b><small>${i + 1}º do ciclo</small></span></label>`).join('')}</div></div>
+    <button class="btn primary block">Salvar</button></form>`, {
+    onSubmit: (fd) => {
+      const d = fd.get('date') || dateKey();
+      const idx = Number(fd.get('idx') || 0);
+      setHairStart(d, idx);
+      toast(`Próxima lavagem: ${fmtRel(d, dateKey())} · ${MASKS[h.cycle[idx]].label}`);
+    },
+  });
+}
+A.hairStart = (el) => hairStartSheet(el.dataset.d || nextScheduled(dateKey()));
+A.hairLogDel = (el) => confirmSheet('Apagar este registro?', 'Use se marcou uma lavagem por engano.', 'Apagar', () => {
+  const k = el.dataset.d;
+  delete state.hair.log[k];
+  if (state.done[k]) for (const r of state.routine) if (r.type === 'cabelo') delete state.done[k][r.id];
+  save();
 });
+
 
 /* ================= PRODUTOS ================= */
 function productsBody() {

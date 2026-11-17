@@ -140,6 +140,28 @@ export function ensureHairLog(k) {
   return h.log[k];
 }
 
+/** define a data da próxima lavagem e a posição no ciclo; limpa registros vazios antes dela */
+export function setHairStart(date, idx) {
+  const h = state.hair;
+  const today = dateKey();
+  for (const k of Object.keys(h.log)) {
+    const l = h.log[k];
+    const empty = !Object.keys(l.steps || {}).length && !l.notes;
+    if (k >= today && k <= date && empty) {
+      delete h.log[k];
+      if (state.done[k]) for (const r of state.routine) if (r.type === 'cabelo') delete state.done[k][r.id];
+    }
+  }
+  h.anchorDate = date;
+  h.anchorIndex = Number(idx) || 0;
+  save();
+}
+/** próximo dia de lavagem programado (pela contagem), a partir de k */
+export function nextScheduled(k) {
+  for (let i = 0; i < 60; i++) { const d = addDays(k, i); if (hairDay(d).scheduled) return d; }
+  return k;
+}
+
 /** lavou num dia que não estava programado: recomeça a contagem a partir de k */
 export function washOn(k) {
   const h = state.hair;
