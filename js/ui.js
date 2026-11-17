@@ -1,5 +1,6 @@
 // Infra de interface: ações, folhas (bottom sheets), avisos e componentes visuais.
 import { $, esc, dateKey } from './utils.js';
+import { iconize } from './icons.js';
 
 export const A = {}; // ações de clique: data-act="nome"
 export const C = {}; // ações de change: data-change="nome"
@@ -21,6 +22,7 @@ export function sheet(title, body, { onSubmit, onMount } = {}) {
       <div class="sheet-head"><h3>${esc(title)}</h3><button class="icon-btn" data-act="closeSheet" aria-label="Fechar">✕</button></div>
       <div class="sheet-body">${body}</div>
     </div>`;
+  iconize(root);
   root.classList.add('open');
   document.body.classList.add('noscroll');
   sheetSubmit = onSubmit || null;
@@ -52,6 +54,7 @@ let toastT;
 export function toast(msg) {
   const t = $('#toast');
   t.textContent = msg;
+  iconize(t);
   t.classList.add('show');
   clearTimeout(toastT);
   toastT = setTimeout(() => t.classList.remove('show'), 2200);

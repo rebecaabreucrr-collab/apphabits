@@ -1,6 +1,6 @@
 // Regras do app: tarefas do dia, cronograma capilar, desafio, leitura, treino.
 import { state, save } from './store.js';
-import { addDays, diffDays, weekday, weekStart, dateKey, toMin } from './utils.js';
+import { addDays, diffDays, weekday, weekStart, dateKey, toMin, nowMin } from './utils.js';
 import { MASKS } from './defaults.js';
 
 /* ---------------- Tarefas do dia ---------------- */
@@ -12,13 +12,53 @@ export function tasksFor(k) {
     .filter((r) => !(r.from && k < r.from))
     .map((r) => ({ ...r, kind: 'routine' }));
   const once = state.oneOff.filter((o) => o.date === k).map((o) => ({ ...o, kind: 'once', days: [] }));
-  return [...routine, ...once].sort((a, b) => toMin(a.time) - toMin(b.time));
+  return [...routine, ...once, ...medTasks()].sort((a, b) => toMin(a.time) - toMin(b.time));
 }
 
-export const findTask = (id) => state.routine.find((r) => r.id === id) || state.oneOff.find((o) => o.id === id);
+/* ---------------- Remédios ---------------- */
+// cada horário de um remédio vira uma tarefa "virtual" no dia
+export function medTasks() {
+  const out = [];
+  for (const m of state.meds) {
+    if (!m.active) continue;
+    m.schedule.forEach((s, i) => out.push({ id: `med:${m.id}:${i}`, kind: 'med', type: 'remedio', medId: m.id, slot: i,
+      time: s.time, title: m.name, icon: '💊', color: m.color || 'violet', days: [0, 1, 2, 3, 4, 5, 6], qty: s.qty }));
+  }
+  return out;
+}
+export const medPerDay = (m) => m.schedule.reduce((a, s) => a + (Number(s.qty) || 0), 0);
+export const medTakes = (k, id) => state.medLog[k]?.[id] || [];
+export const medTaken = (k, id) => medTakes(k, id).reduce((a, t) => a + (Number(t.q) || 0), 0);
+const medCum = (m, i) => m.schedule.slice(0, i + 1).reduce((a, s) => a + (Number(s.qty) || 0), 0);
+export function addMedTake(k, id, q = 1, t) {
+  const d = new Date();
+  const time = t || `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  ((state.medLog[k] ||= {})[id] ||= []).push({ t: time, q: Number(q) || 1 });
+  state.medLog[k][id].sort((a, b) => a.t.localeCompare(b.t));
+  save();
+}
+export function removeMedTake(k, id, idx) { medTakes(k, id).splice(idx, 1); save(); }
+/** reduz o total tomado no dia até "alvo", removendo as últimas tomadas */
+function trimMed(k, id, target) {
+  const list = medTakes(k, id);
+  while (list.length && medTaken(k, id) > target) {
+    const last = list[list.length - 1];
+    const over = medTaken(k, id) - target;
+    if (last.q > over) last.q -= over; else list.pop();
+  }
+}
+
+export function findTask(id) {
+  if (String(id).startsWith('med:')) return medTasks().find((t) => t.id === id) || null;
+  return state.routine.find((r) => r.id === id) || state.oneOff.find((o) => o.id === id);
+}
 
 /** retorna false ou a data em que foi feita (tarefas "um dos dias da semana" contam a semana toda) */
 export function isDone(task, k) {
+  if (task.type === 'remedio') {
+    const m = state.meds.find((x) => x.id === task.medId);
+    return m && medTaken(k, m.id) >= medCum(m, task.slot) ? k : false;
+  }
   if (task.flexWeekly) {
     const ws = weekStart(k);
     for (let i = 0; i < 7; i++) {
@@ -31,6 +71,13 @@ export function isDone(task, k) {
 }
 
 export function setDone(task, k, val) {
+  if (task.type === 'remedio') {
+    const m = state.meds.find((x) => x.id === task.medId); if (!m) return;
+    const cum = medCum(m, task.slot), taken = medTaken(k, m.id);
+    if (val && taken < cum) addMedTake(k, m.id, cum - taken);
+    else if (!val && taken >= cum) { trimMed(k, m.id, cum - (Number(task.qty) || 1)); save(); }
+    return;
+  }
   if (task.flexWeekly && !val) {
     const d = isDone(task, k);
     if (d) delete state.done[d][task.id];
@@ -55,6 +102,20 @@ export function dayProgress(k) {
   const d = t.filter((x) => isDone(x, k)).length;
   return { total: t.length, done: d, pct: t.length ? d / t.length : 0 };
 }
+
+/** feitas / pendentes / atrasadas */
+export function taskStatus(t, k, now = nowMin(), today = dateKey()) {
+  if (isDone(t, k)) return 'done';
+  if (k < today) return 'late';
+  if (k > today) return 'pending';
+  if (t.time && toMin(t.time) <= now && !(t.end && now < toMin(t.end))) return 'late';
+  return 'pending';
+}
+
+/* ---------------- Água ---------------- */
+export const waterTotal = (k) => (state.water.log[k] || []).reduce((a, b) => a + b, 0);
+export function addWater(k, ml) { (state.water.log[k] ||= []).push(ml); save(); }
+export function undoWater(k) { (state.water.log[k] || []).pop(); save(); }
 
 export function isTaskIdDone(id, k) {
   const t = findTask(id);
@@ -202,6 +263,7 @@ export const activeChallenge = () => state.challenges.find((c) => c.id === state
 export const challengeEnd = (c) => addDays(c.startDate, c.days - 1);
 export const challengeDay = (c, k = dateKey()) => diffDays(c.startDate, k) + 1;
 export function goalDone(c, g, k) {
+  if (g.link === '__agua') return !!c.checks[k]?.[g.id] || waterTotal(k) >= state.water.goal;
   return !!c.checks[k]?.[g.id] || (g.link ? isTaskIdDone(g.link, k) : false);
 }
 export function dayScore(c, k) {

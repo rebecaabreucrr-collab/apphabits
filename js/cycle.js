@@ -129,4 +129,4 @@ export function togglePeriodDay(k) {
   if (state.cycle.periodDays[k]) delete state.cycle.periodDays[k]; else state.cycle.periodDays[k] = true;
   save();
 }
-export const cycleLog = (k) => (state.cycle.logs[k] ||= { flow: '', symptoms: [], moods: [], notes: '' });
+export const cycleLog = (k) => (state.cycle.logs[k] ||= { flow: '', sex: '', symptoms: [], moods: [], notes: '' });

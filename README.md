@@ -13,6 +13,9 @@ App de rotina diária instalável no iPhone (PWA). Funciona offline e guarda os 
 - **Leitura**: cronômetro (continua contando mesmo se fechar o app), livros com total de páginas, quantas páginas leu em quantos minutos no dia, ritmo (pág/min), quanto falta para terminar e diário de anotações.
 - **Desafio de 20 dias**: metas diárias (que podem ser marcadas automaticamente pela rotina), calendário colorido, sequência e dias perfeitos. No fim você pode editar/estender ou criar outro desafio, e os anteriores ficam no histórico.
 - **Meu ciclo**: roda do ciclo, previsão da próxima menstruação, período fértil, ovulação e chance de engravidar; botão "minha menstruação desceu hoje", calendário editável e registro de fluxo, sintomas e humor. As previsões são estimativas e não servem como método contraceptivo.
+- **Remédios**: horários, quantidade em cada horário (ex.: Ômega 3, 3 cápsulas que podem ser tomadas separadas), botão "+1 agora", histórico e informações. Os horários entram na rotina do dia.
+- **Água**: botões de 200 ml, 500 ml e 1 L, meta diária (padrão 3 L) ajustável em Mais.
+- **Personalizar (em Mais)**: nome, 4 layouts (Rosa, Lavanda, Céu, Minimalista), tema claro/escuro, abas do menu (escolher, renomear, reordenar) e blocos da tela inicial.
 - **Backup**: em Mais → Perfil e backup.
 
 ## Como colocar no ar (uma vez só)

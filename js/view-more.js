@@ -3,28 +3,102 @@ import { state, save, replaceState, resetState } from './store.js';
 import { esc, WD, WD_FULL, dateKey, uid } from './utils.js';
 import { A, C, ui, sheet, rerender, toast, pageHead, opt, confirmSheet, go } from './ui.js';
 import { taskSheet } from './forms.js';
-import { COLORS, TASK_TYPES } from './defaults.js';
+import { COLORS, TASK_TYPES, LAYOUTS, TAB_DEFS, DASH_NAMES } from './defaults.js';
+import { svg } from './icons.js';
 import { toMin } from './utils.js';
 
 const item = (href, icon, title, sub, color = 'rose') => `<a class="menu-item" href="${href}"><span class="t-icon bg-soft-${color}">${icon}</span>
   <div class="grow"><b>${title}</b><small>${sub}</small></div><span class="t-go">›</span></a>`;
 
 function renderMore() {
+  const L = LAYOUTS[state.settings.layout] || LAYOUTS.rosa;
+  const goal = state.water.goal;
   return `<header class="page-head top"><h1>Mais</h1></header>
+  <section class="card profile-card">
+    <span class="avatar big">${esc((state.profile.name || '✨').slice(0, 1).toUpperCase())}</span>
+    <label class="field grow"><span>Seu nome (aparece no "Bom dia")</span><input value="${esc(state.profile.name)}" data-change="profileName" placeholder="Seu nome"></label>
+  </section>
+  <h3 class="sec-title">Personalizar</h3>
+  <section class="card menu">
+    ${item('#/aparencia', '🎨', 'Layout e cores', `${L.name} · ${{ auto: 'tema automático', light: 'tema claro', dark: 'tema escuro' }[state.settings.theme]}`, 'violet')}
+    ${item('#/abas', '📱', 'Abas do menu', state.settings.tabs.map((t) => t.label).join(', ') || 'só Hoje e Mais', 'rose')}
+    ${item('#/inicio-config', '🧩', 'Tela inicial', 'Mostrar, esconder e reordenar os blocos', 'sky')}
+    <div class="menu-item"><span class="t-icon bg-soft-sky">💧</span><div class="grow"><b>Meta de água</b><small>por dia</small></div>
+      <select class="mini-select" data-change="waterGoal">${[1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000].map((v) => opt(v, `${(v / 1000).toLocaleString('pt-BR')} L`, goal)).join('')}</select></div>
+  </section>
+  <h3 class="sec-title">Organizar</h3>
   <section class="card menu">
     ${item('#/ciclo', '🌸', 'Meu ciclo', 'Menstruação, período fértil e ovulação', 'pink')}
+    ${item('#/remedios', '💊', 'Remédios', 'Horários, doses e informações', 'violet')}
     ${item('#/rotina', '🗓️', 'Rotina fixa', 'Horários, dias da semana e tarefas da casa', 'violet')}
     ${item('#/treinos', '🏋️‍♀️', 'Treinos', 'Plano da semana e exercícios', 'rose')}
     ${item('#/produtos', '🛍️', 'Meus produtos', 'Skincare, cabelo e o que mais você usa', 'pink')}
     ${item('#/cabelo-edit', '💇‍♀️', 'Cronograma capilar', 'Frequência, ciclo de máscaras e passos', 'sky')}
-    ${item('#/skincare-edit', '🧴', 'Passos do skincare', 'Manhã e noite', 'emerald')}
+    ${item('#/skincare-edit', '🧴', 'Passos do skincare', 'Manhã e noite', 'sky')}
   </section>
+  <h3 class="sec-title">App</h3>
   <section class="card menu">
-    ${item('#/config', '⚙️', 'Perfil e backup', 'Seu nome, salvar e restaurar dados', 'slate')}
-    ${item('#/instalar', '📲', 'Instalar no iPhone', 'Coloque o app na tela de início', 'amber')}
+    ${item('#/config', '⚙️', 'Backup', 'Salvar e restaurar seus dados', 'slate')}
+    ${item('#/instalar', '📲', 'Instalar no iPhone', 'Coloque o app na tela de início', 'violet')}
   </section>
   <p class="center small muted">Minha Rotina · seus dados ficam salvos só neste aparelho</p>`;
 }
+C.waterGoal = (el) => { state.water.goal = Number(el.value); save(); toast('Meta de água atualizada'); rerender(); };
+
+/* ---------- Aparência ---------- */
+function renderLook() {
+  const st = state.settings;
+  return `${pageHead('Layout e cores', '#/mais')}
+  <p class="sub">Escolha o visual do app. Muda na hora.</p>
+  <div class="layouts">${Object.entries(LAYOUTS).map(([k, l]) => `<button class="layout-opt lo-${k} ${st.layout === k ? 'on' : ''}" data-act="setLayout" data-l="${k}">
+    <span class="lo-prev"><i></i><i></i><i></i></span><b>${l.name}</b><small>${l.desc}</small></button>`).join('')}</div>
+  <section class="card"><h2>Tema</h2>
+    <div class="seg">${[['auto', 'Automático'], ['light', 'Claro'], ['dark', 'Escuro']].map(([k, l]) => `<button class="${st.theme === k ? 'on' : ''}" data-act="setTheme" data-t="${k}">${l}</button>`).join('')}</div>
+    <p class="small muted">Automático segue o modo claro/escuro do iPhone.</p></section>`;
+}
+A.setLayout = (el) => { state.settings.layout = el.dataset.l; save(); rerender(); };
+A.setTheme = (el) => { state.settings.theme = el.dataset.t; save(); rerender(); };
+
+/* ---------- Abas ---------- */
+const OPTIONAL_TABS = ['desafio', 'leitura', 'cuidados', 'ciclo', 'remedios', 'treinos', 'rotina'];
+function renderTabs() {
+  const on = state.settings.tabs;
+  const off = OPTIONAL_TABS.filter((id) => !on.some((t) => t.id === id));
+  return `${pageHead('Abas do menu', '#/mais')}
+  <p class="sub">Escolha até 4 abas para a barra de baixo, mude a ordem e o nome. "Hoje" e "Mais" ficam sempre.</p>
+  <section class="card"><h2>Na barra</h2><ul class="mini-list tabs-edit">
+    <li class="fixed"><span class="t-icon bg-soft-rose">${svg(TAB_DEFS.hoje.icon)}</span><div class="grow"><b>Hoje</b><small>fixa</small></div></li>
+    ${on.map((t, i) => `<li><span class="t-icon bg-soft-violet">${svg(TAB_DEFS[t.id].icon)}</span>
+      <input class="tab-name grow" value="${esc(t.label)}" data-change="tabLabel" data-i="${i}" aria-label="Nome da aba">
+      <button class="icon-btn sm" data-act="tabMove" data-i="${i}" data-n="-1" aria-label="Subir">↑</button>
+      <button class="icon-btn sm" data-act="tabMove" data-i="${i}" data-n="1" aria-label="Descer">↓</button>
+      <button class="icon-btn sm" data-act="tabOff" data-i="${i}" aria-label="Tirar da barra">✕</button></li>`).join('')}
+    <li class="fixed"><span class="t-icon bg-soft-rose">${svg(TAB_DEFS.mais.icon)}</span><div class="grow"><b>Mais</b><small>fixa</small></div></li>
+  </ul></section>
+  ${off.length ? `<section class="card"><h2>Disponíveis</h2><ul class="mini-list">${off.map((id) => `<li><span class="t-icon bg-soft-sky">${svg(TAB_DEFS[id].icon)}</span>
+    <div class="grow"><b>${TAB_DEFS[id].label}</b></div><button class="btn small ghost" data-act="tabOn" data-id="${id}">+ Adicionar</button></li>`).join('')}</ul></section>` : ''}
+  <button class="btn ghost block" data-act="tabsReset">Voltar ao padrão</button>`;
+}
+A.tabOn = (el) => {
+  if (state.settings.tabs.length >= 4) return toast('Máximo de 4 abas — tire uma antes');
+  state.settings.tabs.push({ id: el.dataset.id, label: TAB_DEFS[el.dataset.id].label }); save(); rerender();
+};
+A.tabOff = (el) => { state.settings.tabs.splice(Number(el.dataset.i), 1); save(); rerender(); };
+A.tabMove = (el) => { const l = state.settings.tabs; const i = Number(el.dataset.i), j = i + Number(el.dataset.n); if (j < 0 || j >= l.length) return; [l[i], l[j]] = [l[j], l[i]]; save(); rerender(); };
+C.tabLabel = (el) => { const t = state.settings.tabs[Number(el.dataset.i)]; t.label = el.value.trim().slice(0, 12) || TAB_DEFS[t.id].label; save(); rerender(); };
+A.tabsReset = () => { state.settings.tabs = ['desafio', 'leitura', 'cuidados'].map((id) => ({ id, label: TAB_DEFS[id].label })); save(); rerender(); };
+
+/* ---------- Tela inicial ---------- */
+function renderHomeCfg() {
+  const d = state.settings.dash;
+  return `${pageHead('Tela inicial', '#/mais')}
+  <p class="sub">Escolha o que aparece na tela "Hoje" e em que ordem.</p>
+  <ul class="list">${d.map((x, i) => `<li><label class="toggle-line grow"><input type="checkbox" data-change="dashToggle" data-i="${i}" ${x.on ? 'checked' : ''}><span><b>${DASH_NAMES[x.id]}</b></span></label>
+    <div class="reorder"><button class="icon-btn sm" data-act="dashMove" data-i="${i}" data-n="-1" aria-label="Subir">↑</button>
+    <button class="icon-btn sm" data-act="dashMove" data-i="${i}" data-n="1" aria-label="Descer">↓</button></div></li>`).join('')}</ul>`;
+}
+C.dashToggle = (el) => { state.settings.dash[Number(el.dataset.i)].on = el.checked; save(); };
+A.dashMove = (el) => { const l = state.settings.dash; const i = Number(el.dataset.i), j = i + Number(el.dataset.n); if (j < 0 || j >= l.length) return; [l[i], l[j]] = [l[j], l[i]]; save(); rerender(); };
 
 /* ---------- Rotina fixa ---------- */
 function renderRoutine() {
@@ -112,9 +186,7 @@ A.exEdit = (el) => {
 
 /* ---------- Perfil e backup ---------- */
 function renderConfig() {
-  return `${pageHead('Perfil e backup', '#/mais')}
-  <section class="card"><h2>Perfil</h2>
-    <label class="field"><span>Como quer ser chamada?</span><input value="${esc(state.profile.name)}" data-change="profileName" placeholder="Seu nome"></label></section>
+  return `${pageHead('Backup', '#/mais')}
   <section class="card"><h2>Backup</h2>
     <p class="small muted">Os dados ficam salvos no seu iPhone. Faça um backup de vez em quando (ex.: salve no app Arquivos ou no iCloud) para não perder nada se trocar de celular.</p>
     <button class="btn primary block" data-act="exportData">⬇︎ Salvar backup</button>
@@ -123,7 +195,7 @@ function renderConfig() {
   <section class="card"><h2>Zona de perigo</h2>
     <button class="btn danger-ghost block" data-act="resetAll">Apagar tudo e recomeçar</button></section>`;
 }
-C.profileName = (el) => { state.profile.name = el.value.trim(); save(); toast('Nome salvo'); };
+C.profileName = (el) => { state.profile.name = el.value.trim(); save(); toast('Nome salvo'); rerender(); };
 A.exportData = async () => {
   const json = JSON.stringify(state, null, 2);
   const name = `minha-rotina-backup-${dateKey()}.json`;
@@ -164,9 +236,12 @@ function renderInstall() {
 
 export const routes = {
   mais: { render: renderMore, tab: 'mais' },
-  rotina: { render: renderRoutine, tab: 'mais' },
-  treinos: { render: renderWorkouts, tab: 'mais' },
-  'treino-edit': { render: renderWorkoutEdit, tab: 'mais' },
+  rotina: { render: renderRoutine, tab: 'rotina' },
+  treinos: { render: renderWorkouts, tab: 'treinos' },
+  'treino-edit': { render: renderWorkoutEdit, tab: 'treinos' },
+  aparencia: { render: renderLook, tab: 'mais' },
+  abas: { render: renderTabs, tab: 'mais' },
+  'inicio-config': { render: renderHomeCfg, tab: 'mais' },
   config: { render: renderConfig, tab: 'mais' },
   instalar: { render: renderInstall, tab: 'mais' },
 };

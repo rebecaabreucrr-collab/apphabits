@@ -34,7 +34,7 @@ export function defaultState() {
   const today = dateKey();
   return {
     version: 1,
-    profile: { name: '' },
+    profile: { name: 'Rebeca' },
 
     routine: [
       { id: 'r-acordar', time: '05:00', title: 'Acordar', icon: '☀️', color: 'amber', days: ALL, type: 'normal' },
@@ -131,6 +131,23 @@ export function defaultState() {
     challenges: [defaultChallenge(today)],
     activeChallengeId: 'c-1',
 
+    water: { goal: 3000, log: {} },
+
+    meds: [
+      { id: 'm-omega', name: 'Ômega 3', unit: 'cápsula', color: 'violet', active: true,
+        schedule: [{ time: '08:00', qty: 1 }, { time: '13:00', qty: 1 }, { time: '20:00', qty: 1 }],
+        info: { purpose: 'Suplemento de ômega 3', dose: '3 cápsulas por dia (pode tomar separado)', notes: '' } },
+    ],
+    medLog: {},
+
+    settings: {
+      layout: 'rosa', // rosa | lavanda | ceu | minimal
+      theme: 'auto', // auto | light | dark
+      tabs: [{ id: 'desafio', label: 'Desafio' }, { id: 'leitura', label: 'Leitura' }, { id: 'cuidados', label: 'Cuidados' }],
+      dash: [{ id: 'resumo', on: true }, { id: 'semana', on: true }, { id: 'agua', on: true }, { id: 'cards', on: true },
+        { id: 'rotina', on: true }, { id: 'desafio', on: true }],
+    },
+
     cycle: {
       cycleLength: 28, // usado enquanto não houver histórico suficiente
       periodLength: 4,
@@ -149,8 +166,31 @@ export function defaultChallenge(start) {
       { id: 'g2', text: 'Ouvir a Palavra do dia', link: 'r-palavra' },
       { id: 'g3', text: 'Treinar', link: 'r-academia' },
       { id: 'g4', text: 'Ler', link: 'r-leitura' },
-      { id: 'g5', text: 'Beber 2L de água', link: null },
+      { id: 'g5', text: 'Bater a meta de água', link: '__agua' },
     ],
     checks: {},
   };
 }
+
+// abas que podem ir para a barra de baixo (Hoje e Mais são fixas)
+export const TAB_DEFS = {
+  hoje: { label: 'Hoje', icon: 'home' },
+  desafio: { label: 'Desafio', icon: 'target' },
+  leitura: { label: 'Leitura', icon: 'book' },
+  cuidados: { label: 'Cuidados', icon: 'heart' },
+  ciclo: { label: 'Ciclo', icon: 'flower' },
+  remedios: { label: 'Remédios', icon: 'pill' },
+  treinos: { label: 'Treinos', icon: 'dumbbell' },
+  rotina: { label: 'Rotina', icon: 'calendar' },
+  mais: { label: 'Mais', icon: 'dots' },
+};
+export const LAYOUTS = {
+  rosa: { name: 'Rosa', desc: 'Rosa com roxinho' },
+  lavanda: { name: 'Lavanda', desc: 'Roxinho com azul' },
+  ceu: { name: 'Céu', desc: 'Azulzinho com lilás' },
+  minimal: { name: 'Minimalista', desc: 'Claro, com detalhes rosa' },
+};
+export const DASH_NAMES = {
+  resumo: 'Hábitos + Meu ciclo (quadrados)', semana: 'Semana', agua: 'Água', cards: 'Cards de resumo',
+  rotina: 'Rotina do dia', desafio: 'Metas do desafio',
+};

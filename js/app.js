@@ -1,6 +1,9 @@
 // Ponto de entrada: roteador, eventos, barra de abas e service worker.
 import { load, state } from './store.js';
-import { $, dateKey, fmtTimer } from './utils.js';
+import { $, dateKey, fmtTimer, esc } from './utils.js';
+import { iconize, svg } from './icons.js';
+import { TAB_DEFS } from './defaults.js';
+import { routes as meds } from './view-meds.js';
 import { A, C, ui, setRender, closeSheet } from './ui.js';
 import { timerElapsed } from './logic.js';
 import { routes as today } from './view-today.js';
@@ -11,17 +14,22 @@ import { routes as more } from './view-more.js';
 import { routes as cycle } from './view-cycle.js';
 
 load();
-const routes = { ...today, ...care, ...reading, ...challenge, ...more, ...cycle };
+const routes = { ...today, ...care, ...reading, ...challenge, ...more, ...cycle, ...meds };
 
-const TABS = [
-  ['hoje', 'Hoje', '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>'],
-  ['desafio', 'Desafio', '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/>'],
-  ['leitura', 'Leitura', '<path d="M4 5.5C6.5 4 9.5 4 12 6c2.5-2 5.5-2 8-.5V19c-2.5-1.5-5.5-1.5-8 .5-2.5-2-5.5-2-8-.5z"/><path d="M12 6v13.5"/>'],
-  ['cuidados', 'Cuidados', '<path d="M12 21s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 8a4.3 4.3 0 0 1 7.5 2.8C19.5 16.4 12 21 12 21z"/>'],
-  ['mais', 'Mais', '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>'],
-];
-$('#tabbar').innerHTML = TABS.map(([id, label, svg]) =>
-  `<a href="#/${id}" data-tab="${id}"><svg viewBox="0 0 24 24" aria-hidden="true">${svg}</svg><span>${label}</span></a>`).join('');
+function tabIds() { return ['hoje', ...state.settings.tabs.map((t) => t.id), 'mais']; }
+function renderTabs() {
+  const labels = Object.fromEntries(state.settings.tabs.map((t) => [t.id, t.label]));
+  const ids = tabIds();
+  const bar = $('#tabbar');
+  bar.style.gridTemplateColumns = `repeat(${ids.length}, 1fr)`;
+  bar.innerHTML = ids.map((id) => `<a href="#/${id}" data-tab="${id}">${svg(TAB_DEFS[id].icon)}<span>${esc(labels[id] || TAB_DEFS[id].label)}</span></a>`).join('');
+}
+function applyLook() {
+  const st = state.settings;
+  const root = document.documentElement;
+  root.className = `layout-${st.layout || 'rosa'}`;
+  if (st.theme === 'auto') delete root.dataset.theme; else root.dataset.theme = st.theme;
+}
 
 let lastPath = null;
 function parseHash() {
@@ -35,13 +43,17 @@ function render() {
   const same = path === lastPath;
   const y = window.scrollY;
   const view = $('#view');
+  applyLook();
+  renderTabs();
   try {
     view.innerHTML = route.render(params);
+    iconize(view);
   } catch (e) {
     console.error(e);
     view.innerHTML = `<div class="card"><h2>Ops! Algo deu errado.</h2><p class="muted small">${String(e.message || e)}</p><a class="btn primary" href="#/hoje">Voltar ao início</a></div>`;
   }
-  document.querySelectorAll('#tabbar a').forEach((a) => a.classList.toggle('on', a.dataset.tab === route.tab));
+  const active = tabIds().includes(route.tab) ? route.tab : 'mais';
+  document.querySelectorAll('#tabbar a').forEach((a) => a.classList.toggle('on', a.dataset.tab === active));
   if (same) window.scrollTo(0, y); else { window.scrollTo(0, 0); view.classList.remove('enter'); void view.offsetWidth; view.classList.add('enter'); }
   lastPath = path;
 }

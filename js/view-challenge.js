@@ -23,9 +23,9 @@ function goalsList(c, k) {
   return `<ul class="goals">${c.goals.map((g) => {
     const on = goalDone(c, g, k);
     const auto = g.link && !c.checks[k]?.[g.id] && on;
-    const t = g.link ? findTask(g.link) : null;
+    const t = g.link === '__agua' ? { title: 'meta de água' } : g.link ? findTask(g.link) : null;
     return `<li class="${on ? 'done' : ''}">${check(on, 'goalToggle', `data-c="${c.id}" data-g="${g.id}" data-d="${k}"`, g.text)}
-      <span>${esc(g.text)}${t ? ` <small class="muted">· ${auto ? 'marcado pela rotina' : 'ligado a "' + esc(t.title) + '"'}</small>` : ''}</span></li>`;
+      <span>${esc(g.text)}${t ? ` <small class="muted">· ${auto ? 'marcado automaticamente' : 'ligado a "' + esc(t.title) + '"'}</small>` : ''}</span></li>`;
   }).join('')}</ul>`;
 }
 
@@ -79,7 +79,7 @@ A.goalToggleSheet = (el) => {
 function goalRow(g = { id: '', text: '', link: '' }) {
   return `<div class="goal-edit"><input type="hidden" name="gid" value="${esc(g.id)}">
     <input name="gtext" value="${esc(g.text)}" placeholder="Ex.: Beber 2L de água">
-    <select name="glink" aria-label="Ligar à rotina">${opt('', 'Marcar manualmente', g.link || '')}${state.routine.map((r) => opt(r.id, `Auto: ${r.icon} ${r.title}`, g.link || '')).join('')}</select>
+    <select name="glink" aria-label="Ligar à rotina">${opt('', 'Marcar manualmente', g.link || '')}${opt('__agua', 'Auto: meta de água', g.link || '')}${state.routine.map((r) => opt(r.id, `Auto: ${r.icon} ${r.title}`, g.link || '')).join('')}</select>
     <button type="button" class="icon-btn sm" data-rm aria-label="Remover meta">✕</button></div>`;
 }
 
