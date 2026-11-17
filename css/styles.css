@@ -429,7 +429,6 @@ small { display: block; color: var(--muted); font-size: 13px; }
 .hbar { display: flex; height: 10px; border-radius: 6px; overflow: hidden; margin-top: 6px; background: transparent; }
 .hb-period { background: var(--period); } .hb-rest { background: color-mix(in srgb, var(--fertile) 35%, transparent); }
 .disclaimer { padding: 0 16px; }
-.tiles > .tile:last-child:nth-child(even) { grid-column: 1 / -1; min-height: 0; }
 .cw-today { stroke: var(--text); stroke-width: 2.5; }
 
 /* ===== v3: ícones, quadrados, água, remédios, personalização ===== */
@@ -593,7 +592,7 @@ details.card > summary { cursor: pointer; padding: 2px 0; }
 .tiles.as-list { grid-template-columns: 1fr; }
 .tiles.as-list .tile { flex-direction: row; align-items: center; min-height: 0; gap: 12px; }
 .tiles.as-list .tile > div { flex: 1; min-width: 0; }
-.tiles.as-list .tile:last-child:nth-child(even) { grid-column: auto; }
+
 .phrase-card { display: flex; align-items: center; gap: 10px; background: linear-gradient(135deg, color-mix(in srgb, var(--c-pink) 12%, var(--surface)), color-mix(in srgb, var(--c-sky) 12%, var(--surface))); color: var(--accent); }
 .phrase-card p { margin: 0; color: var(--text); font-weight: 600; font-size: 15.5px; font-style: italic; }
 .sq-alt { background: linear-gradient(160deg, color-mix(in srgb, var(--c-violet) 12%, var(--surface)), color-mix(in srgb, var(--c-sky) 14%, var(--surface))); }
