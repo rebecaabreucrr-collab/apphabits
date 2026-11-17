@@ -129,7 +129,7 @@ function renderHomeCfg() {
     <button class="icon-btn sm" data-act="dashMove" data-i="${i}" data-n="1" aria-label="Descer">↓</button></div></li>`).join('')}</ul>
 
   <h3 class="sec-title">Quadrado ao lado de Hábitos</h3>
-  <section class="card"><div class="chips">${Object.entries(SQUARE_NAMES).map(([k, l]) =>
+  <section class="card"><p class="small muted">Em "Nenhum", o quadrado de Hábitos vira um retângulo ocupando a largura toda.</p><div class="chips">${Object.entries(SQUARE_NAMES).map(([k, l]) =>
     `<button class="chip ${H.square2 === k ? 'on' : ''}" data-act="homeSquare" data-k="${k}">${l}</button>`).join('')}</div></section>
 
   <h3 class="sec-title">Frase do dia</h3>
@@ -160,7 +160,7 @@ function renderHomeCfg() {
 C.dashToggle = (el) => { state.settings.dash[Number(el.dataset.i)].on = el.checked; save(); };
 A.dashMove = (el) => { const l = state.settings.dash; const i = Number(el.dataset.i), j = i + Number(el.dataset.n); if (j < 0 || j >= l.length) return; [l[i], l[j]] = [l[j], l[i]]; save(); rerender(); };
 C.homeFlag = (el) => { state.settings.home[el.dataset.k] = el.checked; save(); };
-A.homeSquare = (el) => { state.settings.home.square2 = el.dataset.k; save(); rerender(); toast(`Quadrado: ${SQUARE_NAMES[el.dataset.k]}`); };
+A.homeSquare = (el) => { state.settings.home.square2 = el.dataset.k; save(); rerender(); toast(el.dataset.k === 'nenhum' ? 'Hábitos agora ocupa a largura toda' : `Quadrado: ${SQUARE_NAMES[el.dataset.k]}`); };
 C.homePhrase = (el) => { state.settings.home.phrase = el.value; save(); toast('Frases salvas'); };
 A.homeLayout = (el) => { state.settings.home.cardsLayout = el.dataset.k; save(); rerender(); };
 C.cardToggle = (el) => { state.settings.home.cards[Number(el.dataset.i)].on = el.checked; save(); };

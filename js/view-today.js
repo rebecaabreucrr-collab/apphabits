@@ -99,13 +99,20 @@ function weekStrip(k) {
     <button class="icon-btn" data-act="weekShift" data-n="7" aria-label="Próxima semana">›</button></div>`;
 }
 
-function habitsSquare(k, tasks) {
+function habitsSquare(k, tasks, wide = false) {
   const c = { done: 0, pending: 0, late: 0 };
   tasks.forEach((t) => c[taskStatus(t, k)]++);
   const pct = tasks.length ? c.done / tasks.length : 0;
   const donePct = Math.round(pct * 100);
   const f = ui.taskFilter;
   const chip = (key, ic, n, label) => `<button class="sq-chip ${key} ${f === key ? 'on' : ''}" data-act="taskFilter" data-f="${key}">${ic}<b>${n}</b><small>${label}</small></button>`;
+  if (wide) {
+    return `<section class="square sq-habits sq-wide">
+      ${ring(pct, { size: 112, stroke: 11, label: `${donePct}%`, sub: donePct >= 100 ? 'completo' : 'feito', cls: 'light' })}
+      <div class="sq-wide-body"><div class="sq-head"><span>Hábitos de hoje</span><small>${c.done} de ${tasks.length} tarefas</small></div>
+        <div class="sq-chips">${chip('done', '✅', c.done, 'feitas')}${chip('pending', '⏳', c.pending, 'pendentes')}${chip('late', '⚠️', c.late, 'atrasadas')}</div></div>
+    </section>`;
+  }
   return `<section class="square sq-habits">
     <div class="sq-head"><span>Hábitos</span><small>${tasks.length} tarefas</small></div>
     ${ring(pct, { size: 92, stroke: 9, label: `${donePct}%`, sub: donePct >= 100 ? 'completo' : 'feito', cls: 'light' })}
@@ -282,7 +289,9 @@ export function renderToday() {
   }).join('');
   const blocks = {
     frase: phraseCard(k),
-    resumo: `<div class="squares">${habitsSquare(k, tasks)}${sideSquare(k)}</div>`,
+    resumo: state.settings.home.square2 === 'nenhum'
+      ? `<div class="squares solo">${habitsSquare(k, tasks, true)}</div>`
+      : `<div class="squares">${habitsSquare(k, tasks)}${sideSquare(k)}</div>`,
     semana: weekStrip(k),
     agua: waterCard(k),
     cards: tiles(k),

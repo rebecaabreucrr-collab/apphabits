@@ -199,7 +199,7 @@ export const CARD_NAMES = {
   desafio: 'Desafio', treino: 'Treino', remedios: 'Remédios', estudo: 'Estudo', cabelo: 'Cabelo', leitura: 'Leitura', skincare: 'Skincare',
   agua: 'Água', ciclo: 'Meu ciclo',
 };
-export const SQUARE_NAMES = { ciclo: 'Meu ciclo', agua: 'Água', desafio: 'Desafio', leitura: 'Leitura', estudo: 'Estudo', remedios: 'Remédios' };
+export const SQUARE_NAMES = { nenhum: 'Nenhum', ciclo: 'Meu ciclo', agua: 'Água', desafio: 'Desafio', leitura: 'Leitura', estudo: 'Estudo', remedios: 'Remédios' };
 export function defaultHome() {
   return {
     square2: 'ciclo',

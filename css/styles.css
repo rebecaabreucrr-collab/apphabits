@@ -620,3 +620,12 @@ body.locked .view { padding-bottom: calc(var(--safe-bottom) + 24px); }
 .pw-eye { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 36px; height: 36px; border-radius: 10px; color: var(--muted); }
 .btn[disabled] { opacity: .6; }
 .account .row { padding: 4px 0 10px; }
+/* Hábitos sozinho: retângulo */
+.squares.solo { grid-template-columns: 1fr; }
+.sq-wide { flex-direction: row; align-items: center; justify-content: flex-start; gap: 16px; min-height: 0; padding: 16px; }
+.sq-wide-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.sq-wide .sq-head { flex-direction: column; align-items: flex-start; gap: 2px; }
+.sq-wide .sq-head span { font-size: 18px; }
+.sq-wide .sq-chip { padding: 6px 0 5px; }
+.sq-wide .sq-chip b { font-size: 18px; } .sq-wide .sq-chip small { font-size: 11px; }
+.sq-wide .ring-label b { font-size: 26px; }
