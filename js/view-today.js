@@ -6,6 +6,8 @@ import { tasksFor, isDone, toggleDone, dayProgress, findTask, hairDay, workoutFo
   activeChallenge, challengeDay, goalDone, nextWashes, peekSkin, setDone, dayScore } from './logic.js';
 import { MASKS } from './defaults.js';
 import { taskSheet } from './forms.js';
+import { bar } from './ui.js';
+import { cycleStats, predictions, dayInfo as cycleDayInfo, cycleSummary, PHASES } from './cycle.js';
 
 function subtitle(t, k) {
   const parts = [];
@@ -62,52 +64,108 @@ function taskRow(t, k, highlight) {
   </li>`;
 }
 
+const miniRing = (pct, size, stroke, inner = '', cls = '') => {
+  const r = (size - stroke) / 2, c = 2 * Math.PI * r;
+  return `<span class="mring ${cls}" style="width:${size}px;height:${size}px"><svg viewBox="0 0 ${size} ${size}" aria-hidden="true">
+    <circle cx="${size / 2}" cy="${size / 2}" r="${r}" stroke-width="${stroke}" class="mr-bg"/>
+    <circle cx="${size / 2}" cy="${size / 2}" r="${r}" stroke-width="${stroke}" class="mr-fg" stroke-dasharray="${c}"
+      stroke-dashoffset="${c * (1 - Math.max(0, Math.min(1, pct)))}" transform="rotate(-90 ${size / 2} ${size / 2})"/></svg><span>${inner}</span></span>`;
+};
+
 function weekStrip(k) {
   const ws = weekStart(k); const today = dateKey();
+  const st = cycleStats(); const pred = predictions(st);
   let html = '';
   for (let i = 0; i < 7; i++) {
     const d = addDays(ws, i);
     const p = d <= today ? dayProgress(d).pct : 0;
-    html += `<button class="wday ${d === k ? 'sel' : ''} ${d === today ? 'today' : ''}" data-act="pickDay" data-d="${d}">
-      <small>${WD[parseKey(d).getDay()]}</small><b>${parseKey(d).getDate()}</b>
-      <i class="wdot" style="--p:${Math.round(p * 100)}%"></i></button>`;
+    const ph = cycleDayInfo(d, st, pred).phase;
+    const dot = ['menstruacao', 'prevista', 'fertil', 'ovulacao'].includes(ph) ? `<i class="cdot cd-${PHASES[ph].color}" title="${PHASES[ph].label}"></i>` : '<i class="cdot"></i>';
+    html += `<button class="wday2 ${d === k ? 'sel' : ''} ${d === today ? 'today' : ''} ${d > today ? 'future' : ''}" data-act="pickDay" data-d="${d}">
+      <small>${WD[parseKey(d).getDay()]}</small>${miniRing(p, 38, 4, parseKey(d).getDate(), p >= 1 ? 'full' : '')}${dot}</button>`;
   }
-  return `<div class="week">
+  return `<div class="week2">
     <button class="icon-btn" data-act="weekShift" data-n="-7" aria-label="Semana anterior">‹</button>
     <div class="week-days">${html}</div>
     <button class="icon-btn" data-act="weekShift" data-n="7" aria-label="Próxima semana">›</button></div>`;
 }
 
-function nowCard(tasks, k) {
-  if (k !== dateKey() || !tasks.length) return '';
+function heroNow(tasks, k, p) {
+  const today = dateKey();
+  if (k !== today) {
+    return `<div class="dh-now"><b class="dh-msg">${p.pct >= 1 ? 'Dia completo ✨' : k < today ? 'Dia passado' : 'Planejamento'}</b>
+      <span>${p.done} de ${p.total} tarefas concluídas</span></div>`;
+  }
   const m = nowMin();
   const current = tasks.find((t) => t.end && toMin(t.time) <= m && m < toMin(t.end) && !isDone(t, k));
   const next = tasks.find((t) => t.time && toMin(t.time) > m && !isDone(t, k));
-  const late = tasks.filter((t) => t.time && toMin(t.time) <= m && !isDone(t, k) && t !== current).length;
-  if (!current && !next && !late) return `<div class="card now-card ok">🎉 <b>Tudo feito por hoje!</b> Você arrasou.</div>`;
-  const inMin = next ? toMin(next.time) - m : 0;
-  return `<div class="card now-card">
-    ${current ? `<div class="nc-row"><span class="pill">Agora</span><b>${current.icon} ${esc(current.title)}</b><small>até ${current.end}</small></div>` : ''}
-    ${next ? `<div class="nc-row"><span class="pill soft">Próximo</span><b>${next.icon} ${esc(next.title)}</b><small>${next.time} · em ${fmtMinutes(inMin)}</small></div>` : ''}
-    ${late ? `<div class="nc-row late"><span class="pill warn">${late}</span><small>tarefa${late > 1 ? 's' : ''} do horário já passou${late > 1 ? 'ram' : ''} e não ${late > 1 ? 'foram marcadas' : 'foi marcada'}</small></div>` : ''}
-  </div>`;
+  if (!current && !next) {
+    return `<div class="dh-now"><b class="dh-msg">${p.pct >= 1 ? 'Tudo feito! 🎉' : 'Reta final do dia'}</b><span>${p.done} de ${p.total} tarefas concluídas</span></div>`;
+  }
+  const block = (label, t, info) => `<button class="dh-block" data-act="openTask" data-id="${t.id}"><small>${label}</small>
+    <b>${t.icon} ${esc(t.title)}</b><span>${info}</span></button>`;
+  return `<div class="dh-now">
+    ${current ? block('AGORA', current, `até ${current.end}`) : ''}
+    ${next ? block('A SEGUIR', next, `${next.time} · em ${fmtMinutes(toMin(next.time) - m)}`) : ''}</div>`;
 }
 
-function statChips(k) {
-  const chips = [];
+function cycleTile(k) {
+  const sum = cycleSummary(dateKey());
+  if (sum.empty) return `<a class="tile tile-wide tile-cycle" href="#/ciclo"><span class="tile-ico">🌸</span>
+    <div><b>Meu ciclo</b><small>Toque para registrar sua menstruação</small></div></a>`;
+  const { st, pred, info } = sum;
+  const len = info.len || st.cycleLen;
+  let seg = '';
+  for (let i = 0; i < len; i++) {
+    const d = addDays(info.start, i);
+    const ph = cycleDayInfo(d, st, pred).phase;
+    seg += `<i class="cseg cd-${PHASES[ph]?.color || 'neutral'} ${d === dateKey() ? 'now' : ''}"></i>`;
+  }
+  const ph = PHASES[info.phase] || PHASES.folicular;
+  return `<a class="tile tile-wide tile-cycle" href="#/ciclo">
+    <div class="tc-top"><span class="tile-ico">${ph.icon}</span>
+      <div class="grow"><small>Meu ciclo · dia ${info.cycleDay}</small><b>${sum.inPeriod ? `${sum.title} ${sum.sub}` : sum.late ? `Menstruação: ${sum.title} ${sum.sub}` : `Menstruação em ${sum.title}`}</b>
+      <small>${sum.fertileText} · chance ${sum.chance.toLowerCase()}</small></div><span class="t-go">›</span></div>
+    <div class="cbar">${seg}</div>
+    <div class="cbar-legend"><span><i class="cdot cd-period"></i>menstruação</span><span><i class="cdot cd-fertile"></i>fértil</span><span><i class="cdot cd-ovulation"></i>ovulação</span></div>
+  </a>`;
+}
+
+function tiles(k) {
+  const out = [cycleTile(k)];
   const c = activeChallenge();
   if (c) {
     const d = challengeDay(c, k);
-    if (d >= 1 && d <= c.days) chips.push(`<a class="stat" href="#/desafio"><span>🔥</span><b>Dia ${d}/${c.days}</b><small>desafio</small></a>`);
-  }
+    const inRange = d >= 1 && d <= c.days;
+    out.push(`<a class="tile t-violet" href="#/desafio">${miniRing(inRange ? dayScore(c, k) : 0, 54, 6, inRange ? `${Math.round(dayScore(c, k) * 100)}%` : '🎯', 'tile-ring')}
+      <div><b>${inRange ? `Dia ${d}/${c.days}` : d < 1 ? 'Em breve' : 'Concluído'}</b><small>Desafio</small></div></a>`);
+  } else out.push(`<a class="tile t-violet" href="#/desafio"><span class="tile-ico">🎯</span><div><b>Criar desafio</b><small>20 dias</small></div></a>`);
   const w = workoutFor(k);
-  chips.push(`<a class="stat" href="#/treino?d=${k}"><span>🏋️‍♀️</span><b>${w ? esc(w.name) : 'Descanso'}</b><small>treino</small></a>`);
+  const wl = state.workoutLog[k];
+  const wn = w && wl ? w.exercises.filter((e) => wl.ex[e.id]).length : 0;
+  out.push(`<a class="tile t-rose" href="#/treino?d=${k}"><span class="tile-ico">🏋️‍♀️</span><div><b>${w ? esc(w.name) : 'Descanso'}</b>
+    <small>${w ? `${wn}/${w.exercises.length} exercícios` : 'sem treino hoje'}</small>${w ? bar(wn / (w.exercises.length || 1)) : ''}</div></a>`);
   const nw = nextWashes(k, 1)[0];
-  if (nw) chips.push(`<a class="stat" href="#/cabelo?d=${nw.date}"><span>${MASKS[nw.mask].icon}</span><b>${nw.date === k ? 'Lavar hoje' : fmtRel(nw.date, k)}</b><small>${MASKS[nw.mask].label}</small></a>`);
+  if (nw) out.push(`<a class="tile t-sky" href="#/cabelo?d=${nw.date}"><span class="tile-ico">${MASKS[nw.mask].icon}</span><div>
+    <b>${nw.date === k ? 'Lavar hoje' : fmtRel(nw.date, k).replace(/ \(.*\)/, '')}</b><small>Cabelo · ${MASKS[nw.mask].label}</small></div></a>`);
   const r = readingDay(k);
-  chips.push(`<a class="stat" href="#/leitura"><span>📖</span><b>${fmtMinutes(r.sec / 60)}</b><small>${r.pages} pág. lidas</small></a>`);
-  return `<div class="stats">${chips.join('')}</div>`;
+  const b = state.books.find((x) => x.id === state.reading.activeBookId);
+  const bp = b && b.pages ? (b.current || 0) / b.pages : 0;
+  out.push(`<a class="tile t-orange" href="#/leitura"><span class="tile-ico">📖</span><div><b>${fmtMinutes(r.sec / 60)} · ${r.pages} pág.</b>
+    <small>${b ? `${esc(b.title)} · ${Math.round(bp * 100)}%` : 'Leitura de hoje'}</small>${b ? bar(bp) : ''}</div></a>`);
+  const sk = (key) => { const rr = state.skincare[key]; const l = peekSkin(k, key); return [l ? rr.steps.filter((s) => l.steps[s.id]).length : 0, rr.steps.length]; };
+  const [a1, a2] = sk('am'), [p1, p2] = sk('pm');
+  out.push(`<a class="tile t-emerald" href="#/skincare?r=${nowMin() >= 15 * 60 && k === dateKey() ? 'pm' : 'am'}&d=${k}"><span class="tile-ico">🧴</span><div><b>Skincare</b>
+    <small>☀️ ${a1}/${a2} · 🌙 ${p1}/${p2}</small>${bar((a1 + p1) / ((a2 + p2) || 1))}</div></a>`);
+  return `<div class="tiles">${out.join('')}</div>`;
 }
+
+const GROUPS = [
+  ['Manhã', '🌅', (t) => t.time && toMin(t.time) < 12 * 60],
+  ['Tarde', '☀️', (t) => t.time && toMin(t.time) >= 12 * 60 && toMin(t.time) < 18 * 60],
+  ['Noite', '🌙', (t) => t.time && toMin(t.time) >= 18 * 60],
+  ['Qualquer hora', '🕐', (t) => !t.time],
+];
 
 function challengeCard(k) {
   const c = activeChallenge();
@@ -131,31 +189,38 @@ export function renderToday() {
   const p = dayProgress(k);
   const m = nowMin();
   const name = state.profile.name ? `, ${esc(state.profile.name)}` : '';
-  const msg = p.pct >= 1 ? 'Dia completo! ✨' : p.pct >= 0.5 ? 'Mais da metade, continua!' : p.done ? 'Bom começo, segue firme!' : 'Vamos começar? 💪';
   const highlightId = k === today ? (tasks.find((t) => t.end && toMin(t.time) <= m && m < toMin(t.end))
     || tasks.find((t) => t.time && toMin(t.time) > m))?.id : null;
+  const late = k === today ? tasks.filter((t) => t.time && toMin(t.time) <= m && !isDone(t, k) && !(t.end && m < toMin(t.end))).length : 0;
+  const initial = (state.profile.name || '✨').trim().slice(0, 1).toUpperCase();
+  const groups = GROUPS.map(([label, icon, fn]) => {
+    const list = tasks.filter(fn);
+    if (!list.length) return '';
+    const d = list.filter((t) => isDone(t, k)).length;
+    return `<div class="tgroup"><div class="tg-head"><span>${icon} ${label}</span><small>${d}/${list.length}</small></div>
+      <ul class="timeline">${list.map((t) => taskRow(t, k, t.id === highlightId)).join('')}</ul></div>`;
+  }).join('');
   return `
-  <header class="hero">
-    <div class="hero-top">
-      <div><p class="hello">${k === today ? greeting() + name : 'Planejamento'} ${k === today ? '☀️' : '🗓️'}</p>
-      <h1 class="date-title">${fmtLong(k)}</h1></div>
-      ${k !== today ? `<button class="btn small glass" data-act="pickDay" data-d="${today}">Hoje</button>` : ''}
-    </div>
-    <div class="hero-body">
-      ${ring(p.pct, { size: 112, stroke: 11, label: `${Math.round(p.pct * 100)}%`, sub: `${p.done}/${p.total}`, cls: 'light' })}
-      <div class="hero-text"><b>${msg}</b><span>${p.done} de ${p.total} tarefas concluídas</span>
-      ${state.challenges.length && activeChallenge() ? (() => { const c = activeChallenge(); const d = challengeDay(c, k);
-        return d >= 1 && d <= c.days ? `<span class="hero-chal">Desafio: dia ${d} de ${c.days} · ${Math.round(dayScore(c, k) * 100)}% hoje</span>` : ''; })() : ''}
-      </div>
-    </div>
+  <header class="dash-top">
+    <div><p class="hello2">${k === today ? greeting() + name : 'Planejamento'} ${k === today ? '☀️' : '🗓️'}</p>
+    <h1 class="date-title2">${fmtLong(k)}</h1></div>
+    ${k !== today ? `<button class="btn small primary" data-act="pickDay" data-d="${today}">Hoje</button>` : `<a class="avatar" href="#/config" aria-label="Perfil">${esc(initial)}</a>`}
   </header>
+  <section class="dash-hero">
+    <div class="dh-body">
+      ${ring(p.pct, { size: 128, stroke: 12, label: `${Math.round(p.pct * 100)}%`, sub: 'do dia', cls: 'light' })}
+      ${heroNow(tasks, k, p)}
+    </div>
+    <div class="dh-foot">
+      <span>✅ ${p.done} feita${p.done === 1 ? '' : 's'}</span><span>⏳ ${p.total - p.done} pendente${p.total - p.done === 1 ? '' : 's'}</span>
+      ${late ? `<span class="dh-late">⚠️ ${late} atrasada${late > 1 ? 's' : ''}</span>` : ''}
+    </div>
+  </section>
   ${weekStrip(k)}
-  ${statChips(k)}
-  ${nowCard(tasks, k)}
+  ${tiles(k)}
   <section class="card">
     <div class="card-head"><h2>Rotina do dia</h2><button class="link" data-act="addTask">+ Adicionar</button></div>
-    ${tasks.length ? `<ul class="timeline">${tasks.map((t) => taskRow(t, k, t.id === highlightId)).join('')}</ul>`
-      : empty('🌤️', 'Nada por aqui', 'Adicione tarefas para este dia.')}
+    ${tasks.length ? groups : empty('🌤️', 'Nada por aqui', 'Adicione tarefas para este dia.')}
   </section>
   ${challengeCard(k)}
   <button class="fab" data-act="addTask" aria-label="Adicionar tarefa">+</button>`;

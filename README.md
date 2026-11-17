@@ -4,7 +4,7 @@ App de rotina diária instalável no iPhone (PWA). Funciona offline e guarda os 
 
 ## O que tem no app
 
-- **Hoje (dashboard)**: progresso do dia, semana com bolinhas de progresso, "Agora/Próximo", linha do tempo com todas as tarefas e botão **+** para adicionar qualquer coisa (só no dia ou repetindo na semana).
+- **Hoje (dashboard)**: progresso do dia com "Agora/A seguir", semana com anel de progresso e fase do ciclo, cards coloridos (ciclo, desafio, treino, cabelo, leitura, skincare), tarefas agrupadas por manhã/tarde/noite, linha do tempo com todas as tarefas e botão **+** para adicionar qualquer coisa (só no dia ou repetindo na semana).
 - **Rotina fixa** (editável): 05:00 acordar · 05:10 Palavra do dia (Frei Gilson, com link) · 06:10 academia · cronograma capilar (só nos dias de lavar) · skincare · 08:00–10:00 estudo · 10:00–20:00 trabalho · 13:00 leitura · arrumar a casa todo dia · terça: lavar roupa · quinta **ou** sexta: fazer comida (marcou em um dia, o outro já aparece como feito) · sábado: faxina.
 - **Treino**: plano fixo da semana (ex.: segunda = quadríceps). No dia, toque em "Academia" para abrir o treino, marcar os exercícios e anotar a carga (a última carga fica salva).
 - **Skincare**: passos da manhã e da noite com o produto e **o que foi aplicado**, produtos extras do dia, anotações da pele e histórico.
@@ -12,6 +12,7 @@ App de rotina diária instalável no iPhone (PWA). Funciona offline e guarda os 
 - **Produtos**: cadastro de tudo que você usa. O app conta quantas vezes e quando usou cada um, mostra os mais usados e monta a lista de compras com o que está acabando.
 - **Leitura**: cronômetro (continua contando mesmo se fechar o app), livros com total de páginas, quantas páginas leu em quantos minutos no dia, ritmo (pág/min), quanto falta para terminar e diário de anotações.
 - **Desafio de 20 dias**: metas diárias (que podem ser marcadas automaticamente pela rotina), calendário colorido, sequência e dias perfeitos. No fim você pode editar/estender ou criar outro desafio, e os anteriores ficam no histórico.
+- **Meu ciclo**: roda do ciclo, previsão da próxima menstruação, período fértil, ovulação e chance de engravidar; botão "minha menstruação desceu hoje", calendário editável e registro de fluxo, sintomas e humor. As previsões são estimativas e não servem como método contraceptivo.
 - **Backup**: em Mais → Perfil e backup.
 
 ## Como colocar no ar (uma vez só)

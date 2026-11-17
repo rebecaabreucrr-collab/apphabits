@@ -8,9 +8,10 @@ import { routes as care } from './view-care.js';
 import { routes as reading } from './view-reading.js';
 import { routes as challenge } from './view-challenge.js';
 import { routes as more } from './view-more.js';
+import { routes as cycle } from './view-cycle.js';
 
 load();
-const routes = { ...today, ...care, ...reading, ...challenge, ...more };
+const routes = { ...today, ...care, ...reading, ...challenge, ...more, ...cycle };
 
 const TABS = [
   ['hoje', 'Hoje', '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>'],

@@ -12,6 +12,7 @@ const item = (href, icon, title, sub, color = 'rose') => `<a class="menu-item" h
 function renderMore() {
   return `<header class="page-head top"><h1>Mais</h1></header>
   <section class="card menu">
+    ${item('#/ciclo', '🌸', 'Meu ciclo', 'Menstruação, período fértil e ovulação', 'pink')}
     ${item('#/rotina', '🗓️', 'Rotina fixa', 'Horários, dias da semana e tarefas da casa', 'violet')}
     ${item('#/treinos', '🏋️‍♀️', 'Treinos', 'Plano da semana e exercícios', 'rose')}
     ${item('#/produtos', '🛍️', 'Meus produtos', 'Skincare, cabelo e o que mais você usa', 'pink')}

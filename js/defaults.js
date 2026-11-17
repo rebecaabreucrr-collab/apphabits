@@ -130,6 +130,14 @@ export function defaultState() {
 
     challenges: [defaultChallenge(today)],
     activeChallengeId: 'c-1',
+
+    cycle: {
+      cycleLength: 28, // usado enquanto não houver histórico suficiente
+      periodLength: 4,
+      luteal: 14,
+      periodDays: { '2026-11-10': true, '2026-11-11': true, '2026-11-12': true, '2026-11-13': true },
+      logs: {},
+    },
   };
 }
 

@@ -17,7 +17,7 @@ function fill(target, defs) {
   for (const k of Object.keys(defs)) {
     if (target[k] === undefined) target[k] = defs[k];
     else if (defs[k] && typeof defs[k] === 'object' && !Array.isArray(defs[k]) && typeof target[k] === 'object' && !Array.isArray(target[k])
-      && !['done', 'workoutLog', 'skinLog', 'log', 'checks', 'plan'].includes(k)) fill(target[k], defs[k]);
+      && !['done', 'workoutLog', 'skinLog', 'log', 'checks', 'plan', 'periodDays', 'logs'].includes(k)) fill(target[k], defs[k]);
   }
 }
 
