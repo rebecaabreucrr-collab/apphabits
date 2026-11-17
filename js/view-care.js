@@ -2,7 +2,7 @@
 import { state, save } from './store.js';
 import { esc, dateKey, fmtLong, fmtRel, fmtShort, WD_FULL, weekday, uid, diffDays, addDays } from './utils.js';
 import { A, C, ui, check, sheet, go, rerender, toast, empty, pageHead, bar, opt, confirmSheet } from './ui.js';
-import { workoutFor, workoutLog, markTypeDone, hairDay, ensureHairLog, washOn, postponeWash, nextWashes, hairStepsFor, setHairStart, nextScheduled,
+import { workoutFor, workoutLog, markTypeDone, hairDay, ensureHairLog, washOn, postponeWash, nextWashes, hairStepsFor, setHairStart, nextScheduled, asList,
   reconstructionsInMonth, skinLog, peekSkin, productUsage, product, productName, tasksFor, isDone } from './logic.js';
 import { MASKS, CATEGORIES } from './defaults.js';
 import { productSheet, productOptions } from './forms.js';
@@ -177,7 +177,7 @@ function hairBody(k, { embedded = false } = {}) {
   const rec = reconstructionsInMonth(k);
   let main;
   if (h.isWash) {
-    const steps = hairStepsFor(h.mask);
+    const steps = hairStepsFor(h.mask, k);
     const log = h.log || { steps: {} };
     const n = steps.filter((s) => log.steps[s.id]).length;
     main = `<section class="card hero-mini bg-grad-${M.color}">
@@ -190,7 +190,9 @@ function hairBody(k, { embedded = false } = {}) {
       `<button class="${key === h.mask ? 'on' : ''}" data-act="hairMask" data-d="${k}" data-m="${key}">${m.icon} ${m.label}</button>`).join('')}</div></div>
     <ol class="list steps">${steps.map((s) => `<li class="${log.steps[s.id] ? 'done' : ''}">
       ${check(!!log.steps[s.id], 'hairStep', `data-d="${k}" data-s="${s.id}"`, s.label)}
-      <div class="grow"><b>${esc(s.label)}</b><small>${esc(productName(s.productId))}</small></div></li>`).join('')}</ol>
+      <div class="grow"><b>${esc(s.label)}</b><small class="${s.options.length ? '' : 'warn-txt'}">${s.options.length ? esc(productName(s.productId)) : 'Nenhum produto escolhido · configure'}</small>
+        ${s.options.length > 1 ? `<small class="alt-info">Alterna com: ${s.options.filter((x) => x !== s.productId).map((x) => esc(product(x)?.name || '')).join(', ')}</small>` : ''}</div>
+      ${s.options.length > 1 ? `<button class="btn small ghost swap" data-act="hairSwap" data-d="${k}" data-s="${s.id}" aria-label="Trocar produto">🔄 Trocar</button>` : ''}</li>`).join('')}</ol>
     <label class="field"><span>Anotações do cabelo</span><textarea rows="2" data-change="hairNotes" data-d="${k}" placeholder="Ex.: fios mais macios, frizz...">${esc(h.log?.notes || '')}</textarea></label>
     ${!Object.keys(h.log?.steps || {}).length && k >= dateKey() ? `<button class="btn ghost block" data-act="hairStart" data-d="${addDays(k, 1)}">📅 Não vou lavar ${k === dateKey() ? 'hoje' : 'neste dia'} — mudar data</button>` : ''}`}`;
   } else {
@@ -203,10 +205,14 @@ function hairBody(k, { embedded = false } = {}) {
   return `${main}
   <section class="card"><div class="card-head"><h2>Próximas lavagens</h2>${embedded ? '<a class="link" href="#/cabelo-edit">Configurar</a>' : ''}</div>
     <div class="wash-list">${upcoming.map((x) => `<a href="#/cabelo?d=${x.date}" class="wash bg-soft-${MASKS[x.mask].color} ${x.date === k ? 'sel' : ''}">
-      <small>${WD_FULL[weekday(x.date)].slice(0, 3)}</small><b>${fmtShort(x.date)}</b><span>${MASKS[x.mask].icon}</span><small>${MASKS[x.mask].label}</small></a>`).join('')}</div>
+      <small>${WD_FULL[weekday(x.date)].slice(0, 3)}</small><b>${fmtShort(x.date)}</b><span>${MASKS[x.mask].icon}</span><small>${MASKS[x.mask].label}</small>${washMaskName(x)}</a>`).join('')}</div>
     <p class="small muted mt">Reconstruções neste mês: <b>${rec}</b>${rec > 2 ? ' ⚠️ acima de 2 — considere trocar por hidratação' : ' (ideal: até 2)'} · Lava a cada ${state.hair.interval} dias</p>
   </section>
   ${hairHistory()}`;
+}
+function washMaskName(x) {
+  const st = hairStepsFor(x.mask, x.date).find((q) => q.when === 'mask');
+  return st?.productId ? `<small class="wash-prod">${esc(product(st.productId)?.name || '')}</small>` : '';
 }
 function hairHistory() {
   const logs = Object.entries(state.hair.log).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 8);
@@ -221,12 +227,23 @@ function renderHair(p) {
 }
 A.hairStep = (el) => {
   const { d, s } = el.dataset; const l = ensureHairLog(d);
-  const step = hairStepsFor(l.mask).find((x) => x.id === s);
+  const step = hairStepsFor(l.mask, d).find((x) => x.id === s);
   if (l.steps[s]) delete l.steps[s]; else l.steps[s] = { p: step?.productId || null };
-  const all = hairStepsFor(l.mask).every((x) => l.steps[x.id]);
+  const all = hairStepsFor(l.mask, d).every((x) => l.steps[x.id]);
   markTypeDone(d, 'cabelo', all);
   if (all) toast('Cabelo finalizado! 💇‍♀️');
   save(); rerender();
+};
+A.hairSwap = (el) => {
+  const { d, s } = el.dataset;
+  const before = hairDay(d).mask;
+  const step = hairStepsFor(before, d).find((x) => x.id === s);
+  if (!step || step.options.length < 2) return;
+  const next = step.options[(step.options.indexOf(step.productId) + 1) % step.options.length];
+  const l = ensureHairLog(d);
+  (l.pick ||= {})[s] = next;
+  if (l.steps[s]) l.steps[s].p = next;
+  save(); toast(`Hoje: ${product(next)?.name || ''}`); rerender();
 };
 A.hairMask = (el) => { const l = ensureHairLog(el.dataset.d); l.mask = el.dataset.m; save(); rerender(); };
 C.hairNotes = (el) => { ensureHairLog(el.dataset.d).notes = el.value; save(); };
@@ -254,18 +271,34 @@ function renderHairEdit() {
       <button class="icon-btn sm" data-act="cycleDel" data-i="${i}" aria-label="Remover">✕</button></li>`).join('')}</ol>
     <div class="row gap wrap">${Object.entries(MASKS).map(([k, m]) => `<button class="btn small ghost" data-act="cycleAdd" data-m="${k}">+ ${m.icon} ${m.label}</button>`).join('')}</div>
   </section>
-  <section class="card"><h2>Máscaras que você usa</h2>${Object.entries(MASKS).map(([k, m]) =>
-    `<label class="field"><span>${m.icon} ${m.label}</span><select data-change="maskProduct" data-m="${k}">${productOptions(h.maskProducts[k] || '', { cat: 'cabelo' })}</select></label>`).join('')}
+  <section class="card"><h2>Máscaras que você usa</h2>
+    <p class="small muted">Coloque quantas quiser em cada tipo. Com mais de uma, o app alterna a cada lavagem daquele tipo.</p>
+    ${Object.entries(MASKS).map(([k, m]) => {
+      const list = asList(h.maskProducts[k]);
+      return `<div class="mask-group"><b>${m.icon} ${m.label}</b>
+        <div class="prod-chips">${list.map((pid, i) => `<span class="pchip">${i + 1}. ${esc(productName(pid))}<button data-act="maskRemove" data-m="${k}" data-p="${pid}" aria-label="Remover">✕</button></span>`).join('') || '<small class="warn-txt">nenhuma escolhida</small>'}</div>
+        <select class="mini-select add-sel" data-change="maskAdd" data-m="${k}">${opt('', '+ adicionar máscara', '')}${state.products.filter((p) => !list.includes(p.id)).sort((a, b) => (a.category === 'cabelo' ? -1 : 1) - (b.category === 'cabelo' ? -1 : 1)).map((p) => opt(p.id, p.name + (p.brand ? ' · ' + p.brand : ''), '')).join('')}</select></div>`;
+    }).join('')}
     <button class="link" data-act="newHairProduct">+ cadastrar produto de cabelo</button></section>
   <section class="card"><div class="card-head"><h2>Passos da lavagem</h2><button class="link" data-act="hairStepEdit">+ Passo</button></div>
     <ol class="list steps">${h.steps.map((s, i) => `<li><div class="grow" data-act="hairStepEdit" data-s="${s.id}"><b>${esc(s.label)}</b>
-      <small>${s.when === 'mask' ? 'produto conforme a máscara do dia' : esc(productName(s.productId))} · ${whenLabel[s.when]}</small></div>
+      <small>${s.when === 'mask' ? 'produto conforme a máscara do dia' : asList(s.productIds).map((x) => esc(productName(x))).join(' / ') || 'nenhum produto'} · ${whenLabel[s.when]}</small></div>
       <div class="reorder"><button class="icon-btn sm" data-act="hairStepMove" data-i="${i}" data-n="-1" aria-label="Subir">↑</button>
       <button class="icon-btn sm" data-act="hairStepMove" data-i="${i}" data-n="1" aria-label="Descer">↓</button></div></li>`).join('')}</ol>
   </section>`;
 }
 C.hairInterval = (el) => { state.hair.interval = Number(el.value); save(); rerender(); };
-C.maskProduct = (el) => { state.hair.maskProducts[el.dataset.m] = el.value || null; save(); };
+C.maskAdd = (el) => {
+  if (!el.value) return;
+  const l = (state.hair.maskProducts[el.dataset.m] = asList(state.hair.maskProducts[el.dataset.m]));
+  if (!l.includes(el.value)) l.push(el.value);
+  save(); toast('Máscara adicionada'); rerender();
+};
+A.maskRemove = (el) => {
+  const k = el.dataset.m;
+  state.hair.maskProducts[k] = asList(state.hair.maskProducts[k]).filter((x) => x !== el.dataset.p);
+  save(); rerender();
+};
 A.newHairProduct = () => productSheet(undefined, { category: 'cabelo' });
 A.cycleAdd = (el) => { state.hair.cycle.push(el.dataset.m); save(); rerender(); };
 A.cycleDel = (el) => { if (state.hair.cycle.length <= 1) return toast('O ciclo precisa de ao menos 1 máscara'); state.hair.cycle.splice(Number(el.dataset.i), 1); save(); rerender(); };
@@ -277,12 +310,19 @@ A.hairStepEdit = (el) => {
     <label class="field"><span>Nome do passo</span><input name="label" required value="${esc(s?.label || '')}" placeholder="Ex.: Finalizador"></label>
     <label class="field"><span>Quando usar</span><select name="when">${opt('always', 'Toda lavagem', s?.when)}${opt('mask', 'Máscara do dia (troca sozinha)', s?.when)}
       ${opt('reconstrucao', 'Só na reconstrução', s?.when)}${opt('hidratacao', 'Só na hidratação', s?.when)}${opt('nutricao', 'Só na nutrição', s?.when)}</select></label>
-    <label class="field"><span>Produto (não vale para "máscara do dia")</span><select name="p">${productOptions(s?.productId || '', { cat: 'cabelo' })}</select></label>
+    <div class="field" id="prod-field"><span>Produtos (marque um ou mais — com mais de um, o app alterna a cada lavagem)</span>
+      <div class="check-list">${[...state.products].sort((a, b) => (a.category === 'cabelo' ? -1 : 1) - (b.category === 'cabelo' ? -1 : 1) || a.name.localeCompare(b.name)).map((p) =>
+        `<label class="toggle-line"><input type="checkbox" name="p" value="${p.id}" ${asList(s?.productIds).includes(p.id) ? 'checked' : ''}><span>${esc(p.name)}${p.brand ? ` <small class="muted">· ${esc(p.brand)}</small>` : ''}</span></label>`).join('')}</div>
+      <button type="button" class="link" data-act="newHairProduct">+ cadastrar produto de cabelo</button></div>
     <button class="btn primary block mt">Salvar</button>
     ${s ? '<button type="button" class="btn danger-ghost block" id="del">Excluir passo</button>' : ''}</form>`, {
-    onMount: (root) => root.querySelector('#del')?.addEventListener('click', () => { state.hair.steps = steps.filter((x) => x !== s); save(); A.closeSheet(); rerender(); }),
+    onMount: (root) => {
+      root.querySelector('#del')?.addEventListener('click', () => { state.hair.steps = steps.filter((x) => x !== s); save(); A.closeSheet(); rerender(); });
+      const sync = () => { root.querySelector('#prod-field').hidden = root.querySelector('[name=when]').value === 'mask'; };
+      root.querySelector('[name=when]').addEventListener('change', sync); sync();
+    },
     onSubmit: (fd) => {
-      const data = { label: fd.get('label').trim(), when: fd.get('when'), productId: fd.get('p') || null };
+      const data = { label: fd.get('label').trim(), when: fd.get('when'), productIds: fd.getAll('p') };
       if (s) Object.assign(s, data); else steps.push({ id: uid(), ...data });
       save();
     },

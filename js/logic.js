@@ -202,12 +202,45 @@ export function nextWashes(from, count = 6) {
   return out;
 }
 
-export function hairStepsFor(mask) {
+export const asList = (v) => (Array.isArray(v) ? v.filter(Boolean) : v ? [v] : []);
+/** produtos possíveis de um passo (vários = o app vai alternando) */
+export function stepOptions(s, mask) {
+  return s.when === 'mask' ? asList(state.hair.maskProducts[mask]) : asList(s.productIds ?? s.productId);
+}
+/** lavagens antes de k: as registradas + as programadas de hoje até k */
+function washesBefore(k) {
+  const today = dateKey(); const out = [];
+  for (const [d, l] of Object.entries(state.hair.log)) if (d < k) out.push({ date: d, mask: l.mask, log: l });
+  for (let d = today, i = 0; d < k && i < 400; d = addDays(d, 1), i++) {
+    if (state.hair.log[d]) continue;
+    const h = hairDay(d); if (h.scheduled) out.push({ date: d, mask: h.mask });
+  }
+  return out.sort((a, b) => a.date.localeCompare(b.date));
+}
+/** qual produto usar neste passo, alternando a cada lavagem em que ele aparece */
+function rotate(s, mask, k, opts) {
+  if (opts.length < 2) return opts[0] || null;
+  let ptr = 0;
+  for (const w of washesBefore(k)) {
+    const applies = s.when === 'always' || (s.when === 'mask' ? w.mask === mask : w.mask === s.when);
+    if (!applies) continue;
+    const used = w.log?.steps?.[s.id]?.p || w.log?.pick?.[s.id];
+    const i = used ? opts.indexOf(used) : -1;
+    ptr = i >= 0 ? i + 1 : ptr + 1;
+  }
+  return opts[ptr % opts.length];
+}
+export function hairStepsFor(mask, k = dateKey()) {
   const h = state.hair;
+  const log = h.log[k];
   return h.steps
     .filter((s) => s.when === 'always' || s.when === 'mask' || s.when === mask)
-    .map((s) => ({ ...s, productId: s.when === 'mask' ? h.maskProducts[mask] : s.productId,
-      label: s.when === 'mask' ? `Máscara de ${MASKS[mask]?.label.toLowerCase()}` : s.label }));
+    .map((s) => {
+      const opts = stepOptions(s, mask);
+      const chosen = log?.steps?.[s.id]?.p || log?.pick?.[s.id];
+      return { ...s, options: opts, productId: chosen && opts.includes(chosen) ? chosen : rotate(s, mask, k, opts),
+        label: s.when === 'mask' ? `Máscara de ${MASKS[mask]?.label.toLowerCase()}` : s.label };
+    });
 }
 
 export function reconstructionsInMonth(k) {

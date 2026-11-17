@@ -49,6 +49,10 @@ function migrate(s) {
     const fr = s.settings.dash.find((x) => x.id === 'frase'); if (fr) fr.on = true;
     s.profile.phraseMigrated = true;
   }
+  // cabelo: vários produtos por passo/máscara
+  const hm = s.hair?.maskProducts || {};
+  for (const k of Object.keys(hm)) if (!Array.isArray(hm[k])) hm[k] = hm[k] ? [hm[k]] : [];
+  for (const st of s.hair?.steps || []) if (!Array.isArray(st.productIds)) { st.productIds = st.productId ? [st.productId] : []; delete st.productId; }
   const H = defaultHome();
   s.settings.home ||= H;
   for (const k of Object.keys(H)) if (s.settings.home[k] === undefined) s.settings.home[k] = H[k];

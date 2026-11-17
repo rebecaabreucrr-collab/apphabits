@@ -628,3 +628,16 @@ body.locked .view { padding-bottom: calc(var(--safe-bottom) + 24px); }
 .sq-wide .sq-chip { padding: 6px 0 5px; }
 .sq-wide .sq-chip b { font-size: 18px; } .sq-wide .sq-chip small { font-size: 11px; }
 .sq-wide .ring-label b { font-size: 26px; }
+/* cabelo: vários produtos */
+.swap { flex: none; min-height: 34px; color: var(--accent); }
+.alt-info { font-size: 11.5px; color: var(--c-violet); }
+.warn-txt { color: var(--accent) !important; }
+.wash-prod { font-size: 10px !important; opacity: .9; max-width: 76px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mask-group { padding: 10px 0; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; }
+.mask-group:first-of-type { border-top: 0; }
+.prod-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.pchip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 6px 6px 11px; border-radius: 999px; font-size: 13.5px; font-weight: 600;
+  background: color-mix(in srgb, var(--c-violet) 12%, transparent); }
+.pchip button { width: 22px; height: 22px; border-radius: 50%; background: var(--surface); font-size: 11px; color: var(--muted); }
+.add-sel { align-self: flex-start; color: var(--accent); }
+.check-list { display: flex; flex-direction: column; gap: 8px; max-height: 240px; overflow-y: auto; padding: 4px 2px; }
