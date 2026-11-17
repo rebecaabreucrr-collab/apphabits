@@ -46,3 +46,5 @@ export const fmtMinutes = (min) => {
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 export const greeting = () => { const h = new Date().getHours(); return h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite'; };
+/** ícone que acompanha a saudação: manhã, tarde ou noite */
+export const greetingIcon = () => { const h = new Date().getHours(); return h < 12 ? '🌅' : h < 18 ? '☀️' : '🌙'; };

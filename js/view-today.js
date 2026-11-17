@@ -1,6 +1,6 @@
 // Tela "Hoje": dashboard do dia, linha do tempo e desafio.
 import { state, save } from './store.js';
-import { esc, dateKey, addDays, weekStart, parseKey, WD, fmtLong, greeting, toMin, nowMin, fmtMinutes, fmtRel, WD_FULL, weekday } from './utils.js';
+import { esc, dateKey, addDays, weekStart, parseKey, WD, fmtLong, greeting, greetingIcon, toMin, nowMin, fmtMinutes, fmtRel, WD_FULL, weekday } from './utils.js';
 import { A, C, ui, ring, check, sheet, go, rerender, toast, empty, opt } from './ui.js';
 import { tasksFor, isDone, toggleDone, dayProgress, findTask, hairDay, workoutFor, workoutLog, readingDay,
   activeChallenge, challengeDay, goalDone, nextWashes, peekSkin, setDone, dayScore, taskStatus, waterTotal, addWater, undoWater,
@@ -296,7 +296,7 @@ export function renderToday() {
   };
   return `
   <header class="dash-top">
-    <div><p class="hello2">${k === today ? greeting() + name : 'Planejamento'} ${k === today ? '☀️' : '🗓️'}</p>
+    <div><p class="hello2">${k === today ? greeting() + name : 'Planejamento'} ${k === today ? greetingIcon() : '🗓️'}</p>
     <h1 class="date-title2">${fmtLong(k)}</h1></div>
     ${k !== today ? `<button class="btn small primary" data-act="pickDay" data-d="${today}">Hoje</button>` : avatarHtml('', '#/mais')}
   </header>

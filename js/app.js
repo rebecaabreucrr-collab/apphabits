@@ -1,6 +1,6 @@
 // Ponto de entrada: roteador, eventos, barra de abas e service worker.
 import { load, state } from './store.js';
-import { $, dateKey, fmtTimer, esc } from './utils.js';
+import { $, dateKey, fmtTimer, esc, greeting } from './utils.js';
 import { iconize, svg } from './icons.js';
 import { TAB_DEFS } from './defaults.js';
 import { routes as meds } from './view-meds.js';
@@ -84,9 +84,12 @@ setInterval(() => {
 
 // virada do dia com o app aberto
 let lastToday = dateKey();
+let lastGreeting = greeting();
 function checkDay() {
   const t = dateKey();
-  if (t !== lastToday) { if (ui.date === lastToday) ui.date = t; lastToday = t; render(); }
+  if (t !== lastToday) { if (ui.date === lastToday) ui.date = t; lastToday = t; lastGreeting = greeting(); render(); return; }
+  // troca bom dia / boa tarde / boa noite (e o ícone) com o app aberto
+  if (greeting() !== lastGreeting) { lastGreeting = greeting(); if (!document.querySelector('#sheet-root.open')) render(); }
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { checkDay(); render(); } });
 setInterval(checkDay, 60000);
