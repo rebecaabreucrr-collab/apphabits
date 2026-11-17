@@ -26,8 +26,12 @@ export const TASK_TYPES = {
 
 export const COLORS = ['rose', 'violet', 'amber', 'sky', 'emerald', 'orange', 'pink', 'slate'];
 
+export const SKIN_EMOJIS = ['🧼', '🫧', '💧', '🧪', '🫙', '🎀', '🧴', '🛡️', '☀️', '🌙', '💆‍♀️', '🙂', '👀', '💋', '☁️', '🧊',
+  '🌀', '🥒', '🪞', '🧖‍♀️', '🤲', '💅', '🌺', '🌹', '🌸', '🌿', '🪒', '🖌️', '🛁', '✨'];
 export const EMOJIS = ['✅', '☀️', '🙏', '🏋️‍♀️', '🧴', '💇‍♀️', '📚', '💻', '📖', '🧹', '🧺', '🍲', '🧽', '💧',
-  '🥗', '🛒', '💊', '🧘‍♀️', '🚶‍♀️', '📞', '💰', '🛏️', '🐶', '🌱', '✨', '❤️', '🎯', '📝'];
+  '🥗', '🛒', '💊', '🧘‍♀️', '🚶‍♀️', '📞', '💰', '🛏️', '🐶', '🌱', '✨', '❤️', '🎯', '📝',
+  '🧼', '🫧', '🧪', '🫙', '🎀', '🛡️', '💆‍♀️', '👀', '💋', '☁️', '🧊', '🌀', '🪞', '🧖‍♀️', '💅', '🌺', '🌹', '🌿', '🪒', '🖌️',
+  '🪮', '🪥', '🛁', '🥒', '🌙', '🌸', '🎉', '⏰'];
 
 const ex = (name, sets, reps, load = '', notes = '') => ({ id: uid(), name, sets, reps, load, notes });
 
@@ -97,15 +101,15 @@ export function defaultState() {
 
     skincare: {
       am: { name: 'Manhã', steps: [
-        { id: 's1', productId: 'p-sab', how: 'Rosto todo, massagear por 1 min' },
-        { id: 's2', productId: 'p-vitc', how: '3 gotas no rosto e pescoço' },
-        { id: 's3', productId: 'p-hid', how: 'Rosto e pescoço' },
-        { id: 's4', productId: 'p-fps', how: 'Rosto, pescoço e orelhas (reaplicar ao longo do dia)' },
+        { id: 's1', icon: '🧼', productId: 'p-sab', how: 'Rosto todo, massagear por 1 min' },
+        { id: 's2', icon: '🧪', productId: 'p-vitc', how: '3 gotas no rosto e pescoço' },
+        { id: 's3', icon: '🫙', productId: 'p-hid', how: 'Rosto e pescoço' },
+        { id: 's4', icon: '🛡️', productId: 'p-fps', how: 'Rosto, pescoço e orelhas (reaplicar ao longo do dia)' },
       ] },
       pm: { name: 'Noite', steps: [
-        { id: 's5', productId: 'p-sab', how: 'Rosto todo' },
-        { id: 's6', productId: 'p-noite', how: 'Camada fina, evitando a área dos olhos' },
-        { id: 's7', productId: 'p-hid', how: 'Rosto e pescoço' },
+        { id: 's5', icon: '🧼', productId: 'p-sab', how: 'Rosto todo' },
+        { id: 's6', icon: '🧪', productId: 'p-noite', how: 'Camada fina, evitando a área dos olhos' },
+        { id: 's7', icon: '🫙', productId: 'p-hid', how: 'Rosto e pescoço' },
       ] },
     },
     skinLog: {},
@@ -270,3 +274,19 @@ export const DASH_NAMES = {
   resumo: 'Hábitos + quadrado da direita', semana: 'Semana', agua: 'Água', cards: 'Cards de resumo',
   rotina: 'Rotina do dia', desafio: 'Metas do desafio',
 };
+
+/** ícone sugerido para um passo de skincare, pelo nome do produto */
+export function guessSkinIcon(name = '') {
+  const n = name.toLowerCase();
+  if (/sabonete|limpez|gel de limpeza|espuma|cleanser/.test(n)) return '🧼';
+  if (/protetor|fps|solar|spf/.test(n)) return '🛡️';
+  if (/s[ée]rum|vitamina|[áa]cido|retinol|niacinamida|ampola/.test(n)) return '🧪';
+  if (/olho|olheira/.test(n)) return '👀';
+  if (/l[áa]bio|balm|batom/.test(n)) return '💋';
+  if (/m[áa]scara|argila/.test(n)) return '💆‍♀️';
+  if (/t[ôo]nico|[áa]gua micelar|bruma|água termal/.test(n)) return '💧';
+  if (/esfolia/.test(n)) return '🫧';
+  if (/hidratante|creme|gel/.test(n)) return '🫙';
+  if (/[óo]leo/.test(n)) return '🌿';
+  return '✨';
+}

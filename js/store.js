@@ -1,5 +1,5 @@
 // Persistência local (localStorage) — tudo fica salvo no próprio celular.
-import { defaultState, defaultHome } from './defaults.js';
+import { defaultState, defaultHome, guessSkinIcon } from './defaults.js';
 
 const BASE = 'minharotina.v1';
 let KEY = BASE;
@@ -53,6 +53,10 @@ function migrate(s) {
   const hm = s.hair?.maskProducts || {};
   for (const k of Object.keys(hm)) if (!Array.isArray(hm[k])) hm[k] = hm[k] ? [hm[k]] : [];
   for (const st of s.hair?.steps || []) if (!Array.isArray(st.productIds)) { st.productIds = st.productId ? [st.productId] : []; delete st.productId; }
+  // skincare: cada passo ganha um ícone
+  for (const r of Object.values(s.skincare || {})) for (const st of r.steps || []) {
+    if (!st.icon) st.icon = guessSkinIcon((s.products || []).find((p) => p.id === st.productId)?.name || '');
+  }
   const H = defaultHome();
   s.settings.home ||= H;
   for (const k of Object.keys(H)) if (s.settings.home[k] === undefined) s.settings.home[k] = H[k];

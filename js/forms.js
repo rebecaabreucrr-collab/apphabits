@@ -7,7 +7,7 @@ import { sheet, closeSheet, rerender, toast, opt, A, confirmSheet } from './ui.j
 const dayChips = (days) => `<div class="chips days">${[1, 2, 3, 4, 5, 6, 0].map((d) =>
   `<label class="chip"><input type="checkbox" name="days" value="${d}" ${days.includes(d) ? 'checked' : ''}><span>${WD[d]}</span></label>`).join('')}</div>`;
 
-const emojiGrid = (sel) => `<div class="emoji-grid">${EMOJIS.map((e) =>
+export const emojiGrid = (sel, list = EMOJIS) => `<div class="emoji-grid">${list.map((e) =>
   `<label><input type="radio" name="icon" value="${e}" ${e === sel ? 'checked' : ''}><span>${e}</span></label>`).join('')}</div>`;
 
 const colorRow = (sel) => `<div class="color-row">${COLORS.map((c) =>

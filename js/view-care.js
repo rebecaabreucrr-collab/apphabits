@@ -4,8 +4,8 @@ import { esc, dateKey, fmtLong, fmtRel, fmtShort, WD_FULL, weekday, uid, diffDay
 import { A, C, ui, check, sheet, go, rerender, toast, empty, pageHead, bar, opt, confirmSheet } from './ui.js';
 import { workoutFor, workoutLog, markTypeDone, hairDay, ensureHairLog, washOn, postponeWash, nextWashes, hairStepsFor, setHairStart, nextScheduled, asList,
   reconstructionsInMonth, skinLog, peekSkin, productUsage, product, productName, tasksFor, isDone } from './logic.js';
-import { MASKS, CATEGORIES } from './defaults.js';
-import { productSheet, productOptions } from './forms.js';
+import { MASKS, CATEGORIES, SKIN_EMOJIS, guessSkinIcon } from './defaults.js';
+import { productSheet, productOptions, emojiGrid } from './forms.js';
 
 const q = (p, k, d) => p.get(k) || d;
 
@@ -76,6 +76,7 @@ function renderSkincare(p) {
   <section class="card hero-mini bg-grad-emerald"><small>Rotina da ${r.name.toLowerCase()}</small><h2>${n}/${r.steps.length} passos</h2>${bar(n / (r.steps.length || 1), 'light')}</section>
   ${r.steps.length ? `<ol class="list steps">${r.steps.map((s, i) => `<li class="${log.steps[s.id] ? 'done' : ''}">
       ${check(!!log.steps[s.id], 'skinToggle', `data-d="${k}" data-r="${key}" data-s="${s.id}"`, productName(s.productId))}
+      <span class="t-icon skin-ic">${s.icon || '✨'}</span>
       <div class="grow"><small class="step-n">Passo ${i + 1}</small><b>${esc(productName(s.productId))}</b>
         <label class="inline-edit"><span>Aplicado:</span><input value="${esc(log.how?.[s.id] ?? s.how)}" data-change="skinHow" data-d="${k}" data-r="${key}" data-s="${s.id}" placeholder="Onde / quanto aplicou"></label>
       </div></li>`).join('')}</ol>` : empty('🧴', 'Sem passos', 'Cadastre os passos da sua rotina.', '<a class="btn primary" href="#/skincare-edit">Cadastrar</a>')}
@@ -136,6 +137,7 @@ function renderSkincareEdit() {
     return `<section class="card"><div class="card-head"><h2>${key === 'am' ? '☀️' : '🌙'} ${esc(r.name)}</h2>
       <button class="link" data-act="skinStep" data-r="${key}">+ Passo</button></div>
       ${r.steps.length ? `<ol class="list steps">${r.steps.map((s, i) => `<li>
+        <span class="t-icon skin-ic" data-act="skinStep" data-r="${key}" data-s="${s.id}">${s.icon || '✨'}</span>
         <div class="grow" data-act="skinStep" data-r="${key}" data-s="${s.id}"><small class="step-n">Passo ${i + 1}</small><b>${esc(productName(s.productId))}</b><small>${esc(s.how)}</small></div>
         <div class="reorder"><button class="icon-btn sm" data-act="skinMove" data-r="${key}" data-i="${i}" data-n="-1" aria-label="Subir">↑</button>
         <button class="icon-btn sm" data-act="skinMove" data-r="${key}" data-i="${i}" data-n="1" aria-label="Descer">↓</button></div>
@@ -151,6 +153,7 @@ A.skinStep = (el) => {
     <label class="field"><span>Produto</span><select name="p" required>${productOptions(s?.productId || '', { cat: 'skincare' })}</select></label>
     <button type="button" class="link" data-act="newProductInline">+ cadastrar produto novo</button>
     <label class="field"><span>Como / onde aplicar</span><input name="how" value="${esc(s?.how || '')}" placeholder="Ex.: 3 gotas no rosto e pescoço"></label>
+    <div class="field"><span>Ícone do passo</span>${emojiGrid(s?.icon || '', SKIN_EMOJIS)}</div>
     <button class="btn primary block mt">Salvar</button>
     ${s ? '<button type="button" class="btn danger-ghost block" id="del">Excluir passo</button>' : ''}</form>`, {
     onMount: (root) => root.querySelector('#del')?.addEventListener('click', () => {
@@ -158,7 +161,8 @@ A.skinStep = (el) => {
     }),
     onSubmit: (fd) => {
       if (!fd.get('p')) { toast('Escolha um produto'); return false; }
-      if (s) { s.productId = fd.get('p'); s.how = fd.get('how').trim(); } else steps.push({ id: uid(), productId: fd.get('p'), how: fd.get('how').trim() });
+      const icon = fd.get('icon') || guessSkinIcon(productName(fd.get('p')));
+      if (s) { s.productId = fd.get('p'); s.how = fd.get('how').trim(); s.icon = icon; } else steps.push({ id: uid(), productId: fd.get('p'), how: fd.get('how').trim(), icon });
       save();
     },
   });
