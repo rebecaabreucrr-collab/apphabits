@@ -103,12 +103,12 @@ function habitsSquare(k, tasks) {
   const c = { done: 0, pending: 0, late: 0 };
   tasks.forEach((t) => c[taskStatus(t, k)]++);
   const pct = tasks.length ? c.done / tasks.length : 0;
-  const left = Math.round((1 - pct) * 100);
+  const donePct = Math.round(pct * 100);
   const f = ui.taskFilter;
   const chip = (key, ic, n, label) => `<button class="sq-chip ${key} ${f === key ? 'on' : ''}" data-act="taskFilter" data-f="${key}">${ic}<b>${n}</b><small>${label}</small></button>`;
   return `<section class="square sq-habits">
     <div class="sq-head"><span>Hábitos</span><small>${tasks.length} tarefas</small></div>
-    ${ring(pct, { size: 92, stroke: 9, label: left ? `${left}%` : '100%', sub: left ? 'falta' : 'completo', cls: 'light' })}
+    ${ring(pct, { size: 92, stroke: 9, label: `${donePct}%`, sub: donePct >= 100 ? 'completo' : 'feito', cls: 'light' })}
     <div class="sq-chips">${chip('done', '✅', c.done, 'feitas')}${chip('pending', '⏳', c.pending, 'pendentes')}${chip('late', '⚠️', c.late, 'atrasadas')}</div>
   </section>`;
 }

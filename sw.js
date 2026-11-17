@@ -1,5 +1,5 @@
 // Service worker: o app funciona offline e atualiza sozinho quando houver internet.
-const CACHE = 'minharotina-v5';
+const CACHE = 'minharotina-v6';
 const ASSETS = [
   './', './index.html', './manifest.webmanifest', './css/styles.css',
   './js/app.js', './js/utils.js', './js/store.js', './js/defaults.js', './js/logic.js', './js/ui.js', './js/forms.js',
