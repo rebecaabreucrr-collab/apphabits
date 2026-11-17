@@ -1,7 +1,7 @@
 // Tela "Hoje": dashboard do dia, linha do tempo e desafio.
 import { state, save } from './store.js';
 import { esc, dateKey, addDays, weekStart, parseKey, WD, fmtLong, greeting, toMin, nowMin, fmtMinutes, fmtRel, WD_FULL, weekday } from './utils.js';
-import { A, ui, ring, check, sheet, go, rerender, toast, empty } from './ui.js';
+import { A, C, ui, ring, check, sheet, go, rerender, toast, empty, opt } from './ui.js';
 import { tasksFor, isDone, toggleDone, dayProgress, findTask, hairDay, workoutFor, workoutLog, readingDay,
   activeChallenge, challengeDay, goalDone, nextWashes, peekSkin, setDone, dayScore, taskStatus, waterTotal, addWater, undoWater,
   medPerDay, medTaken } from './logic.js';
@@ -136,9 +136,11 @@ function waterCard(k) {
       ${log.length ? `<button class="icon-btn sm" data-act="waterUndo" data-d="${k}" aria-label="Desfazer o último">↺</button>` : ''}</div>
     <div class="water-bar"><span style="width:${pct * 100}%"></span>${[0.25, 0.5, 0.75].map((x) => `<i style="left:${x * 100}%"></i>`).join('')}</div>
     <small class="water-q">Quanto você tomou?</small>
-    <div class="chips scroll water-sizes">${WATER_SIZES.map((ml) => `<button class="chip ${ml === sel ? 'on' : ''}" data-act="waterSel" data-ml="${ml}">${mlLabel(ml)}</button>`).join('')}
-      <button class="chip" data-act="waterOther" data-d="${k}">Outro…</button></div>
-    <button class="btn primary block water-add" data-act="water" data-ml="${sel}" data-d="${k}">+ Adicionar ${mlLabel(sel)}</button>
+    <div class="water-form">
+      <label class="ml-input"><input type="number" inputmode="numeric" id="water-ml" min="10" max="3000" step="10" value="${sel}" aria-label="Quantidade em ml"><span>ml</span></label>
+      <select class="mini-select water-pick" data-change="waterPick" aria-label="Escolher quantidade">${opt('', 'Escolher', '')}${WATER_SIZES.map((ml) => opt(ml, mlLabel(ml), '')).join('')}</select>
+    </div>
+    <button class="btn primary block water-add" data-act="waterAddInput" data-d="${k}">+ Adicionar</button>
     ${log.length ? `<small class="water-log">Hoje: ${log.map((v) => `${v} ml`).join(' + ')}</small>` : ''}
   </section>`;
 }
@@ -261,6 +263,22 @@ A.water = (el) => {
 };
 A.waterUndo = (el) => { undoWater(el.dataset.d); rerender(); };
 A.waterSel = (el) => { ui.waterSel = Number(el.dataset.ml); rerender(); };
+C.waterPick = (el) => {
+  if (!el.value) return;
+  ui.waterSel = Number(el.value);
+  const inp = document.getElementById('water-ml'); if (inp) inp.value = el.value;
+  el.value = '';
+};
+A.waterAddInput = (el) => {
+  const ml = Math.round(Number(document.getElementById('water-ml')?.value));
+  if (!ml || ml < 10 || ml > 3000) return toast('Digite uma quantidade entre 10 e 3000 ml');
+  ui.waterSel = ml;
+  const before = waterTotal(el.dataset.d);
+  addWater(el.dataset.d, ml);
+  toast(`+${ml} ml 💧`);
+  if (before < state.water.goal && waterTotal(el.dataset.d) >= state.water.goal) toast('Meta de água batida! 💧');
+  rerender();
+};
 A.waterOther = (el) => sheet('Quanto você tomou?', `<form class="form">
   <label class="field"><span>Quantidade em ml</span><input type="number" inputmode="numeric" name="ml" min="10" max="3000" step="10" value="${ui.waterSel || 200}" required></label>
   <button class="btn primary block">Adicionar</button></form>`, {

@@ -555,3 +555,11 @@ details.card > summary { cursor: pointer; padding: 2px 0; }
 .nb-empty { color: var(--muted); line-height: 32px; margin: 0; }
 .st-slot input { width: 104px; padding: 7px 6px; }
 .st-slot b { width: auto; min-width: 74px; }
+.water-form { display: flex; gap: 8px; align-items: stretch; }
+.ml-input { flex: 1; display: flex; align-items: center; border: 1.5px solid var(--line); background: var(--surface-2); border-radius: 14px; padding: 0 14px; min-height: 48px; }
+.ml-input:focus-within { border-color: var(--c-sky); background: var(--surface); }
+.ml-input input { flex: 1; min-width: 0; border: 0; background: transparent; outline: none; font-size: 20px; font-weight: 700; -webkit-appearance: none; appearance: none; -moz-appearance: textfield; }
+.ml-input input::-webkit-outer-spin-button, .ml-input input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.ml-input span { font-weight: 700; color: var(--muted); font-size: 16px; }
+.water-pick { min-height: 48px; padding: 0 30px 0 12px; border-radius: 14px; color: #3b9de0;
+  background: var(--surface-2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233b9de0' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 8px center / 16px; }
