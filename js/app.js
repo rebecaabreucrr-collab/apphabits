@@ -94,5 +94,15 @@ setInterval(checkDay, 60000);
 render();
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-  navigator.serviceWorker.register('./sw.js').catch((e) => console.warn('SW', e));
+  navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then((reg) => {
+    reg.update();
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) reg.update(); });
+  }).catch((e) => console.warn('SW', e));
+  // quando uma versão nova é instalada, recarrega sozinho
+  let reloaded = false;
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloaded) return;
+    reloaded = true; location.reload();
+  });
 }
