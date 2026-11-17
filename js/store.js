@@ -1,8 +1,28 @@
 // Persistência local (localStorage) — tudo fica salvo no próprio celular.
 import { defaultState, defaultHome } from './defaults.js';
 
-const KEY = 'minharotina.v1';
+const BASE = 'minharotina.v1';
+let KEY = BASE;
 export let state;
+
+/** com login: cada conta tem seus próprios dados neste aparelho.
+ *  Na primeira vez, os dados que já existiam (sem dona) passam para a conta. */
+export function useAccount(uid, name = '') {
+  const k = `${BASE}.${uid}`;
+  let isNew = false;
+  if (!localStorage.getItem(k)) {
+    const legacy = localStorage.getItem(BASE);
+    if (legacy && !localStorage.getItem('minharotina.owner')) {
+      localStorage.setItem(k, legacy);
+      localStorage.setItem('minharotina.owner', uid);
+    } else isNew = true;
+  }
+  KEY = k;
+  load();
+  if (isNew && name) { state.profile.name = name; write(); }
+  return isNew;
+}
+export function useLocal() { KEY = BASE; load(); }
 
 export function load() {
   let saved = null;
@@ -44,9 +64,10 @@ function fill(target, defs) {
   }
 }
 
-export function save() {
+function write() {
   try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { console.error(e); alert('Não foi possível salvar os dados.'); }
 }
+export function save() { write(); }
 
 export function replaceState(obj) {
   state = obj; fill(state, defaultState()); migrate(state); save();

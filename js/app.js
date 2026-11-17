@@ -5,7 +5,7 @@ import { iconize, svg } from './icons.js';
 import { TAB_DEFS } from './defaults.js';
 import { routes as meds } from './view-meds.js';
 import { routes as study, studyElapsed } from './view-study.js';
-import { A, C, ui, setRender, closeSheet } from './ui.js';
+import { A, C, ui, setRender, closeSheet, toast } from './ui.js';
 import { timerElapsed } from './logic.js';
 import { routes as today } from './view-today.js';
 import { routes as care } from './view-care.js';
@@ -14,7 +14,30 @@ import { routes as challenge } from './view-challenge.js';
 import { routes as more } from './view-more.js';
 import { routes as cycle } from './view-cycle.js';
 
-load();
+import { authEnabled, isLoggedIn, currentUser, consumeAuthRedirect, ensureFresh, signOut } from './auth.js';
+import { renderLogin, renderNewPassword, setOnLogged } from './view-auth.js';
+import { useAccount, useLocal } from './store.js';
+
+// login: só vale quando o Supabase estiver configurado (js/config.js)
+const redirect = authEnabled() ? consumeAuthRedirect() : null;
+if (authEnabled() && isLoggedIn()) useAccount(currentUser().id); else load();
+setOnLogged((name) => {
+  const isNew = useAccount(currentUser().id, name || currentUser().name);
+  ui.authMsg = null; ui.authMode = 'entrar';
+  if (location.hash.startsWith('#/nova-senha')) location.hash = '#/hoje';
+  render();
+  if (isNew) setTimeout(() => toast(`Bem-vinda${name ? ', ' + name : ''}! 💜`), 300);
+});
+A.logout = () => logout();
+export async function logout() {
+  await signOut();
+  useLocal();
+  location.hash = '#/hoje';
+  render();
+}
+if (redirect?.error) setTimeout(() => { ui.authMsg = { text: redirect.error }; render(); }, 0);
+if (redirect?.type === 'signup' || redirect?.type === 'magiclink') setTimeout(() => toast('E-mail confirmado! 💜'), 400);
+if (authEnabled() && isLoggedIn()) ensureFresh().catch(() => { if (!isLoggedIn()) render(); });
 const routes = { ...today, ...care, ...reading, ...challenge, ...more, ...cycle, ...meds, ...study };
 
 function tabIds() { return ['hoje', ...state.settings.tabs.map((t) => t.id), 'mais']; }
@@ -45,6 +68,15 @@ function render() {
   const y = window.scrollY;
   const view = $('#view');
   applyLook();
+  const locked = authEnabled() && (!isLoggedIn() || path === 'nova-senha');
+  document.body.classList.toggle('locked', locked);
+  if (locked) {
+    $('#tabbar').innerHTML = '';
+    view.innerHTML = path === 'nova-senha' && isLoggedIn() ? renderNewPassword() : renderLogin();
+    iconize(view);
+    lastPath = 'login';
+    return;
+  }
   renderTabs();
   try {
     view.innerHTML = route.render(params);
@@ -59,7 +91,16 @@ function render() {
   lastPath = path;
 }
 setRender(render);
-window.addEventListener('hashchange', () => { closeSheet(); render(); });
+window.addEventListener('hashchange', () => {
+  closeSheet();
+  // link do e-mail aberto com o app já aberto
+  if (authEnabled() && /access_token=|error_description=/.test(location.hash)) {
+    const r = consumeAuthRedirect();
+    if (r?.error) ui.authMsg = { text: r.error };
+    else if (isLoggedIn()) useAccount(currentUser().id);
+  }
+  render();
+});
 
 document.addEventListener('click', (e) => {
   const el = e.target.closest('[data-act]');

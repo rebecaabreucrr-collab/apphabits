@@ -1,11 +1,11 @@
 // Service worker: sempre busca a versão mais nova quando há internet;
 // sem internet, abre a cópia guardada no aparelho.
-const CACHE = 'minharotina-v11';
+const CACHE = 'minharotina-v12';
 const ASSETS = [
   './', './index.html', './manifest.webmanifest', './css/styles.css',
   './js/app.js', './js/utils.js', './js/store.js', './js/defaults.js', './js/logic.js', './js/ui.js', './js/forms.js',
   './js/view-today.js', './js/view-care.js', './js/view-reading.js', './js/view-challenge.js', './js/view-more.js',
-  './js/cycle.js', './js/view-cycle.js', './js/icons.js', './js/view-meds.js', './js/view-study.js',
+  './js/cycle.js', './js/view-cycle.js', './js/icons.js', './js/view-meds.js', './js/view-study.js', './js/config.js', './js/auth.js', './js/view-auth.js',
   './icons/apple-touch-icon.png', './icons/icon-192.png', './icons/icon-512.png',
 ];
 

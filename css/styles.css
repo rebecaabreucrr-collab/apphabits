@@ -601,3 +601,22 @@ details.card > summary { cursor: pointer; padding: 2px 0; }
 .sq-alt .ring-label b { font-size: 21px; }
 .water-ring .ring-fg { stroke: #60a5fa; }
 .sq-alt .sq-foot { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* login */
+body.locked .tabbar { display: none; }
+body.locked .view { padding-bottom: calc(var(--safe-bottom) + 24px); }
+.auth { max-width: 420px; margin: 0 auto; padding-top: 6vh; text-align: center; display: flex; flex-direction: column; gap: 10px; }
+.auth h1 { font-size: 30px; }
+.auth .form { text-align: left; margin-top: 6px; }
+.auth-logo { width: 84px; height: 84px; margin: 0 auto 4px; border-radius: 26px; display: grid; place-items: center; color: #fff;
+  background: var(--hero); box-shadow: 0 14px 30px var(--glow); }
+.auth-logo .ic { width: 46px; height: 46px; stroke-width: 2; }
+.auth-sub { margin-top: 4px; }
+.auth-msg { margin: 0; padding: 10px 12px; border-radius: 12px; font-size: 14px; font-weight: 600;
+  background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
+.auth-msg.ok { background: color-mix(in srgb, var(--c-violet) 14%, transparent); color: var(--c-violet); }
+.auth-foot { margin-top: 10px; }
+.pw { position: relative; }
+.pw input { padding-right: 46px !important; }
+.pw-eye { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 36px; height: 36px; border-radius: 10px; color: var(--muted); }
+.btn[disabled] { opacity: .6; }
+.account .row { padding: 4px 0 10px; }

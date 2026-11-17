@@ -5,6 +5,7 @@ import { A, C, ui, sheet, rerender, toast, pageHead, opt, confirmSheet, go } fro
 import { taskSheet, avatarHtml, photoToDataUrl } from './forms.js';
 import { COLORS, TASK_TYPES, LAYOUTS, TAB_DEFS, DASH_NAMES, CARD_NAMES, SQUARE_NAMES, defaultHome, defaultState, PHRASES } from './defaults.js';
 import { svg } from './icons.js';
+import { authEnabled, isLoggedIn, currentUser, changePassword } from './auth.js';
 import { toMin } from './utils.js';
 
 const item = (href, icon, title, sub, color = 'rose') => `<a class="menu-item" href="${href}"><span class="t-icon bg-soft-${color}">${icon}</span>
@@ -22,6 +23,10 @@ function renderMore() {
     </div>
     <label class="field grow"><span>Seu nome (aparece no "Bom dia")</span><input value="${esc(state.profile.name)}" data-change="profileName" placeholder="Seu nome"></label>
   </section>
+  ${authEnabled() && isLoggedIn() ? `<section class="card menu account">
+    <div class="menu-item"><span class="t-icon bg-soft-violet">👤</span><div class="grow"><b>Minha conta</b><small>${esc(currentUser()?.email || '')}</small></div></div>
+    <div class="row gap"><button class="btn ghost grow" data-act="pwChange">Trocar senha</button><button class="btn danger-ghost grow" data-act="logoutAsk">Sair</button></div>
+  </section>` : ''}
   <h3 class="sec-title">Personalizar</h3>
   <section class="card menu">
     ${item('#/aparencia', '🎨', 'Layout e cores', `${L.name} · ${{ auto: 'tema automático', light: 'tema claro', dark: 'tema escuro' }[state.settings.theme]}`, 'violet')}
@@ -54,6 +59,16 @@ C.profilePhoto = async (el) => {
   catch (e) { toast(e.message); }
 };
 A.photoRemove = () => confirmSheet('Remover foto?', 'Volta a aparecer a inicial do seu nome.', 'Remover', () => { delete state.profile.photo; save(); });
+A.logoutAsk = () => confirmSheet('Sair da conta?', 'Seus dados continuam salvos neste aparelho. Para ver de novo, é só entrar com o mesmo e-mail.', 'Sair', () => A.logout());
+A.pwChange = () => sheet('Trocar senha', `<form class="form">
+  <label class="field"><span>Nova senha</span><input type="password" name="pw" minlength="6" required autocomplete="new-password" placeholder="mínimo 6 caracteres"></label>
+  <button class="btn primary block">Salvar</button></form>`, {
+  onSubmit: (fd) => {
+    const pw = String(fd.get('pw') || '');
+    if (pw.length < 6) { toast('A senha precisa ter pelo menos 6 caracteres'); return false; }
+    changePassword(pw).then(() => toast('Senha alterada 💜')).catch((e) => toast(e.message));
+  },
+});
 C.waterGoal = (el) => { state.water.goal = Number(el.value); save(); toast('Meta de água atualizada'); rerender(); };
 
 /* ---------- Aparência ---------- */
