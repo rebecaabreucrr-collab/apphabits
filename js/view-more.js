@@ -3,7 +3,7 @@ import { state, save, replaceState, resetState } from './store.js';
 import { esc, WD, WD_FULL, dateKey, uid } from './utils.js';
 import { A, C, ui, sheet, rerender, toast, pageHead, opt, confirmSheet, go } from './ui.js';
 import { taskSheet, avatarHtml, photoToDataUrl } from './forms.js';
-import { COLORS, TASK_TYPES, LAYOUTS, TAB_DEFS, DASH_NAMES, CARD_NAMES, SQUARE_NAMES, defaultHome, defaultState } from './defaults.js';
+import { COLORS, TASK_TYPES, LAYOUTS, TAB_DEFS, DASH_NAMES, CARD_NAMES, SQUARE_NAMES, defaultHome, defaultState, PHRASES } from './defaults.js';
 import { svg } from './icons.js';
 import { toMin } from './utils.js';
 
@@ -120,7 +120,8 @@ function renderHomeCfg() {
   <h3 class="sec-title">Frase do dia</h3>
   <section class="card">
     ${d.find((x) => x.id === 'frase')?.on ? '' : '<p class="small muted">Ative "Frase do dia" em Blocos para ela aparecer.</p>'}
-    <label class="field"><span>Suas frases (uma por linha). Em branco, o app usa frases prontas.</span>
+    <p class="small muted">O app já vem com ${PHRASES.length} frases motivacionais prontas e mostra uma diferente por dia.</p>
+    <label class="field"><span>Quer usar as suas? Escreva uma por linha (em branco = frases prontas).</span>
       <textarea rows="4" data-change="homePhrase" placeholder="Ex.: Eu sou capaz! 💜">${esc(H.phrase)}</textarea></label>
   </section>
 

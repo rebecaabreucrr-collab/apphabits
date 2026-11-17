@@ -23,7 +23,11 @@ function migrate(s) {
   if (est && est.type === 'normal' && !s.profile.studyMigrated) est.type = 'estudo';
   s.profile.studyMigrated = true;
   for (const d of ['resumo', 'semana', 'agua', 'cards', 'rotina', 'desafio', 'frase']) {
-    if (!s.settings.dash.some((x) => x.id === d)) s.settings.dash[d === 'frase' ? 'unshift' : 'push']({ id: d, on: d !== 'frase' });
+    if (!s.settings.dash.some((x) => x.id === d)) s.settings.dash[d === 'frase' ? 'unshift' : 'push']({ id: d, on: true });
+  }
+  if (!s.profile.phraseMigrated) {
+    const fr = s.settings.dash.find((x) => x.id === 'frase'); if (fr) fr.on = true;
+    s.profile.phraseMigrated = true;
   }
   const H = defaultHome();
   s.settings.home ||= H;
