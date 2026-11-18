@@ -3,7 +3,7 @@ import { state, save } from './store.js';
 import { esc, dateKey, addDays, weekStart, parseKey, WD, fmtLong, greeting, greetingIcon, toMin, nowMin, fmtMinutes, fmtRel, WD_FULL, weekday } from './utils.js';
 import { A, C, ui, ring, check, sheet, go, rerender, toast, empty, opt } from './ui.js';
 import { tasksFor, isDone, toggleDone, dayProgress, findTask, hairDay, workoutFor, workoutLog, readingDay,
-  activeChallenge, challengeDay, goalDone, nextWashes, peekSkin, setDone, dayScore, taskStatus, waterTotal, addWater, undoWater,
+  activeChallenge, challengeDay, goalDone, nextWashes, peekSkin, setDone, dayScore, hairStepsFor, taskStatus, waterTotal, addWater, undoWater,
   medPerDay, medTaken } from './logic.js';
 import { cycleWheel } from './view-cycle.js';
 import { studyDay } from './view-study.js';
@@ -11,6 +11,21 @@ import { MASKS, PHRASES } from './defaults.js';
 import { taskSheet, avatarHtml } from './forms.js';
 import { bar } from './ui.js';
 import { cycleStats, predictions, dayInfo as cycleDayInfo, cycleSummary, PHASES } from './cycle.js';
+
+/** [feitas, total] das tarefas que têm etapas dentro */
+export function stepProgress(t, k) {
+  if (t.type === 'treino') { const w = workoutFor(k); if (!w || !w.exercises.length) return null; const l = state.workoutLog[k]; return [l ? w.exercises.filter((e) => l.ex[e.id]).length : 0, w.exercises.length]; }
+  if (t.type === 'skincare') { const key = t.routineKey || 'am'; const r = state.skincare[key]; if (!r.steps.length) return null; const l = peekSkin(k, key); return [l ? r.steps.filter((x) => l.steps[x.id]).length : 0, r.steps.length]; }
+  if (t.type === 'cabelo') return hairProgress(k);
+  if (t.type === 'remedio') { const m = state.meds.find((x) => x.id === t.medId); return m ? [Math.min(medTaken(k, m.id), medPerDay(m)), medPerDay(m)] : null; }
+  return null;
+}
+export function hairProgress(k) {
+  const h = hairDay(k); if (!h.isWash) return null;
+  const steps = hairStepsFor(h.mask, k); if (!steps.length) return null;
+  return [steps.filter((x) => h.log?.steps?.[x.id]).length, steps.length];
+}
+const stepLabel = { treino: 'exercícios', skincare: 'passos', cabelo: 'etapas', remedio: 'doses' };
 
 function subtitle(t, k) {
   const parts = [];
@@ -33,7 +48,8 @@ function subtitle(t, k) {
     }
     case 'cabelo': {
       const h = hairDay(k);
-      parts.push(`${MASKS[h.mask]?.icon} ${MASKS[h.mask]?.label}${h.mask === 'reconstrucao' ? ' + acidificante' : ''} · tônico`);
+      const hp = hairProgress(k);
+      parts.push(`${MASKS[h.mask]?.icon} ${MASKS[h.mask]?.label}${h.mask === 'reconstrucao' ? ' + acidificante' : ''}${hp ? ` · ${hp[0]}/${hp[1]} etapas` : ''}`);
       break;
     }
     case 'leitura': {
@@ -66,7 +82,7 @@ function taskRow(t, k, highlight) {
     <div class="t-time">${esc(t.time || '—')}</div>
     <button class="t-main" data-act="openTask" data-id="${t.id}">
       <span class="t-icon bg-soft-${t.color || 'rose'}">${t.icon || '✅'}</span>
-      <span class="t-text"><b>${esc(t.title)}</b><small>${subtitle(t, k)}</small></span>
+      <span class="t-text"><b>${esc(t.title)}</b><small>${subtitle(t, k)}</small>${(() => { const sp = t.type === 'remedio' ? null : stepProgress(t, k); return sp ? `<span class="t-bar ${sp[0] >= sp[1] ? 'full' : ''}"><i style="width:${Math.round((sp[0] / sp[1]) * 100)}%"></i></span>` : ''; })()}</span>
       ${special ? '<span class="t-go">›</span>' : ''}
     </button>
     ${check(done, 'toggleTask', `data-id="${t.id}"`, `Concluir ${t.title}`)}
@@ -172,8 +188,11 @@ function tileMap(k) {
     T.remedios = `<a class="tile t-sky" href="#/remedios"><span class="tile-ico">💊</span><div><b>${tk}/${tot} doses</b><small>Remédios</small>${bar(tot ? tk / tot : 0)}</div></a>`;
   }
   const nw = nextWashes(k, 1)[0];
-  if (nw) T.cabelo = `<a class="tile t-sky" href="#/cabelo?d=${nw.date}"><span class="tile-ico">${MASKS[nw.mask].icon}</span><div>
-    <b>${nw.date === k ? 'Lavar hoje' : fmtRel(nw.date, k).replace(/ \(.*\)/, '')}</b><small>Cabelo · ${MASKS[nw.mask].label}</small></div></a>`;
+  const hp = hairProgress(k);
+  if (hp) T.cabelo = `<a class="tile t-sky" href="#/cabelo?d=${k}"><span class="tile-ico">${MASKS[hairDay(k).mask].icon}</span><div>
+    <b>${hp[0] >= hp[1] ? 'Cabelo feito ✓' : 'Lavar hoje'}</b><small>${MASKS[hairDay(k).mask].label} · ${hp[0]}/${hp[1]} etapas</small>${bar(hp[0] / hp[1])}</div></a>`;
+  else if (nw) T.cabelo = `<a class="tile t-sky" href="#/cabelo?d=${nw.date}"><span class="tile-ico">${MASKS[nw.mask].icon}</span><div>
+    <b>${fmtRel(nw.date, k).replace(/ \(.*\)/, '')}</b><small>Cabelo · ${MASKS[nw.mask].label}</small></div></a>`;
   const st = studyDay(k);
   const lastSt = [...state.study.sessions].sort((a, b) => (b.date + (b.start || '')).localeCompare(a.date + (a.start || '')))[0];
   T.estudo = `<a class="tile t-sky" href="#/estudo"><span class="tile-ico">📚</span><div><b>${fmtMinutes(st / 60)} de estudo</b>
@@ -185,8 +204,10 @@ function tileMap(k) {
     <small>${b ? `${esc(b.title)} · ${Math.round(bp * 100)}%` : 'Leitura de hoje'}</small>${b ? bar(bp) : ''}</div></a>`;
   const sk = (key) => { const rr = state.skincare[key]; const l = peekSkin(k, key); return [l ? rr.steps.filter((s) => l.steps[s.id]).length : 0, rr.steps.length]; };
   const [a1, a2] = sk('am'), [p1, p2] = sk('pm');
-  T.skincare = `<a class="tile t-emerald" href="#/skincare?r=${nowMin() >= 15 * 60 && k === dateKey() ? 'pm' : 'am'}&d=${k}"><span class="tile-ico">🧴</span><div><b>Skincare</b>
-    <small>☀️ ${a1}/${a2} · 🌙 ${p1}/${p2}</small>${bar((a1 + p1) / ((a2 + p2) || 1))}</div></a>`;
+  const pmNow = k === dateKey() ? nowMin() >= 15 * 60 || (a2 && a1 >= a2) : false;
+  const [c1, c2] = pmNow ? [p1, p2] : [a1, a2];
+  T.skincare = `<a class="tile t-emerald" href="#/skincare?r=${pmNow ? 'pm' : 'am'}&d=${k}"><span class="tile-ico">🧴</span><div><b>Skincare ${pmNow ? 'noite' : 'manhã'}</b>
+    <small>${c1}/${c2} passos · ${pmNow ? `☀️ ${a1}/${a2}` : `🌙 ${p1}/${p2}`}</small>${bar(c2 ? c1 / c2 : 0)}</div></a>`;
   const wt = waterTotal(k);
   T.agua = `<a class="tile t-sky" href="#/hoje"><span class="tile-ico">💧</span><div><b>${wt} ml</b><small>de ${state.water.goal} ml de água</small>${bar(wt / state.water.goal)}</div></a>`;
   const cs = cycleSummary(dateKey());
