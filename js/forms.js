@@ -162,3 +162,40 @@ export const readDuration = (src) => {
   const get = (n) => (src instanceof FormData ? src.get(n) : src.querySelector(`[name=${n}]`)?.value);
   return Math.max(0, Number(get('hh') || 0)) * 60 + Math.max(0, Number(get('mm') || 0));
 };
+
+const hm = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+/** horário de início e de término (o tempo é calculado sozinho quando os dois estão preenchidos) */
+export function timeRangeFields(start = '', end = '') {
+  return `<div class="row gap">
+    <label class="field grow"><span>Início</span><input type="time" name="start" value="${start}"></label>
+    <label class="field grow"><span>Término</span><input type="time" name="end" value="${end}"></label></div>`;
+}
+/** início e término sugeridos a partir de "agora" e de uma duração em segundos */
+export function rangeFromNow(seconds) {
+  const now = new Date();
+  return { start: seconds ? hm(new Date(now.getTime() - seconds * 1000)) : '', end: seconds ? hm(now) : '' };
+}
+const toM = (t) => { const [h, m] = String(t).split(':').map(Number); return h * 60 + m; };
+/** liga início/término ao campo de horas e minutos dentro do formulário */
+export function bindTimeRange(root, onChange = () => {}) {
+  const st = root.querySelector('[name=start]'), en = root.querySelector('[name=end]');
+  const hh = root.querySelector('[name=hh]'), mm = root.querySelector('[name=mm]');
+  if (!st || !en || !hh || !mm) return;
+  const fromRange = () => {
+    if (!st.value || !en.value) return;
+    let d = toM(en.value) - toM(st.value);
+    if (d < 0) d += 24 * 60; // passou da meia-noite
+    hh.value = Math.floor(d / 60); mm.value = d % 60;
+    onChange();
+  };
+  const fromDuration = () => {
+    if (!st.value) return;
+    const d = (Number(hh.value || 0) * 60 + Number(mm.value || 0)) % (24 * 60);
+    const t = (toM(st.value) + d) % (24 * 60);
+    en.value = `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+  };
+  st.addEventListener('change', () => (en.value ? fromRange() : fromDuration()));
+  en.addEventListener('change', fromRange);
+  hh.addEventListener('change', fromDuration); mm.addEventListener('change', fromDuration);
+}
+export const fmtRange = (x) => (x.start && x.end ? `${x.start}–${x.end}` : x.start ? `início ${x.start}` : x.end ? `até ${x.end}` : '');

@@ -3,7 +3,8 @@ import { state, save } from './store.js';
 import { esc, dateKey, fmtTimer, fmtMinutes, fmtShort, uid } from './utils.js';
 import { A, C, ui, sheet, rerender, toast, empty, pageHead, bar, opt, ring, go, confirmSheet } from './ui.js';
 import { timerElapsed, readingDay, bookStats, markTypeDone } from './logic.js';
-import { durationField, readDuration } from './forms.js';
+import { iconize } from './icons.js';
+import { durationField, readDuration, timeRangeFields, rangeFromNow, bindTimeRange, fmtRange } from './forms.js';
 
 const T = () => state.reading.timer;
 export const bookStart = (b) => b.started || state.reading.sessions.filter((x) => x.bookId === b.id).map((x) => x.date).sort()[0] || b.created || null;
@@ -58,7 +59,7 @@ function sessionItem(s) {
   const b = state.books.find((x) => x.id === s.bookId);
   const pages = Math.max(0, (s.to || 0) - (s.from || 0));
   const min = (s.seconds || 0) / 60;
-  return `<div class="session"><div class="row between"><b>${fmtShort(s.date)} · ${esc(b?.title || 'Livro')}</b>
+  return `<div class="session"><div class="row between"><b>${fmtShort(s.date)}${fmtRange(s) ? ' · ' + fmtRange(s) : ''} · ${esc(b?.title || 'Livro')}</b>
       <button class="icon-btn sm" data-act="sessionDel" data-id="${s.id}" aria-label="Excluir">✕</button></div>
     <small class="muted">pág. ${s.from} → ${s.to} · <b>${pages} páginas em ${fmtMinutes(min)}</b>${min ? ` · ${(pages / min).toFixed(1)} pág/min` : ''}</small>
     ${s.notes ? `<p class="note">${esc(s.notes).replace(/\n/g, '<br>')}</p>` : ''}</div>`;
@@ -68,12 +69,14 @@ function sessionSheet({ seconds = 0, fromTimer = false } = {}) {
   if (!state.books.length) { toast('Cadastre um livro primeiro'); return A.bookNew(); }
   const b = activeBook() || state.books[0];
   const mins = Math.max(1, Math.round(seconds / 60));
+  const rng = rangeFromNow(seconds);
   sheet(fromTimer ? `Leitura de ${fmtTimer(seconds)} ✨` : 'Registrar leitura', `<form class="form">
     <label class="field"><span>Livro</span><select name="book" id="sb">${state.books.map((x) => opt(x.id, x.title, b.id)).join('')}</select></label>
     <div class="row gap">
       <label class="field grow"><span>Comecei na pág.</span><input type="number" inputmode="numeric" name="from" id="sf" value="${b.current || 0}" min="0"></label>
       <label class="field grow"><span>Parei na pág.</span><input type="number" inputmode="numeric" name="to" id="st" value="" min="0" placeholder="${b.current || 0}" autofocus></label>
     </div>
+    ${timeRangeFields(rng.start, rng.end)}
     ${durationField(seconds ? mins : 0, 'Tempo de leitura')}
     <p class="preview" id="sp"></p>
     <label class="field"><span>Anotações do que li hoje</span><textarea name="notes" rows="5" placeholder="Ideias, frases marcantes, resumo do capítulo..."></textarea></label>
@@ -84,9 +87,11 @@ function sessionSheet({ seconds = 0, fromTimer = false } = {}) {
         const p = Math.max(0, Number($('#st').value || 0) - Number($('#sf').value || 0));
         const m = readDuration(root);
         $('#sp').textContent = $('#st').value ? `📖 ${p} páginas em ${fmtMinutes(m)}${m ? ` · ${(p / m).toFixed(1)} pág/min` : ''}` : '';
+        iconize($('#sp'));
       };
       $('#sb').addEventListener('change', () => { const x = state.books.find((y) => y.id === $('#sb').value); $('#sf').value = x?.current || 0; upd(); });
       root.addEventListener('input', upd);
+      bindTimeRange(root, upd);
     },
     onSubmit: (fd) => {
       const book = state.books.find((x) => x.id === fd.get('book'));
@@ -95,7 +100,8 @@ function sessionSheet({ seconds = 0, fromTimer = false } = {}) {
       if (!m) { toast('Coloque quanto tempo você leu'); return false; }
       const secs = fromTimer && m === mins ? Math.round(seconds) : Math.round(m * 60);
       if (to < from) { toast('A página final deve ser maior que a inicial'); return false; }
-      state.reading.sessions.push({ id: uid(), date: dateKey(), bookId: book.id, seconds: secs, from, to, notes: fd.get('notes').trim() });
+      state.reading.sessions.push({ id: uid(), date: dateKey(), bookId: book.id, seconds: secs, from, to, notes: fd.get('notes').trim(),
+        start: fd.get('start') || '', end: fd.get('end') || '' });
       book.current = Math.max(book.current || 0, to);
       if (book.pages && book.current >= book.pages && !book.finished) { book.finished = dateKey(); toast(`Livro concluído! 🎉 ${book.title}`); }
       else toast('Leitura salva 📖');

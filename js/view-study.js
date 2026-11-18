@@ -1,7 +1,7 @@
 // Estudo: cronômetro, matéria/assunto/fonte, onde parei, horários e histórico.
 import { state, save } from './store.js';
 import { esc, dateKey, addDays, fmtTimer, fmtMinutes, fmtShort, fmtLong, uid, pad, toMin, weekStart, WD } from './utils.js';
-import { durationField, readDuration } from './forms.js';
+import { durationField, readDuration, timeRangeFields, rangeFromNow, bindTimeRange, fmtRange } from './forms.js';
 import { A, C, ui, sheet, rerender, toast, empty, opt, confirmSheet } from './ui.js';
 import { setDone, isDone, tasksFor } from './logic.js';
 
@@ -42,7 +42,7 @@ function sessionCard(x) {
   return `<article class="st-item">
     <div class="row between"><b>${esc(x.materia || 'Sem matéria')}</b><span class="badge bg-soft-sky">${esc(srcLabel(x))}</span></div>
     ${x.assunto ? `<p class="st-topic">${esc(x.assunto)}</p>` : ''}
-    <small>${x.start ? x.start + ' · ' : ''}${fmtMinutes((x.seconds || 0) / 60)} de estudo</small>
+    <small>${fmtRange(x) ? fmtRange(x) + ' · ' : ''}${fmtMinutes((x.seconds || 0) / 60)} de estudo</small>
     ${x.obs ? `<p class="note"><b>Onde parei:</b> ${esc(x.obs).replace(/\n/g, '<br>')}</p>` : ''}
     <div class="row gap st-actions"><button class="btn small primary" data-act="studyResume" data-id="${x.id}">▶︎ Retomar</button>
       <button class="btn small ghost" data-act="studyEdit" data-id="${x.id}">Editar</button></div>
@@ -101,18 +101,21 @@ function studySheet(x, { seconds = 0, fromTimer = false, prefill } = {}) {
   const all = S().sessions;
   const dl = (name, vals) => `<datalist id="${name}">${[...new Set(vals.filter(Boolean))].map((v) => `<option value="${esc(v)}"></option>`).join('')}</datalist>`;
   const mins = Math.max(fromTimer ? 1 : 0, Math.round((base.seconds || 0) / 60));
+  const rng = rangeFromNow(fromTimer ? seconds : 0);
   sheet(fromTimer ? `Estudo de ${fmtTimer(seconds)} ✨` : isNew ? 'Registrar estudo' : 'Editar estudo', `<form class="form">
     <label class="field"><span>Matéria</span><input name="materia" list="dl-mat" required value="${esc(base.materia)}" placeholder="Ex.: Direito Administrativo">${dl('dl-mat', all.map((s) => s.materia))}</label>
     <label class="field"><span>Assunto</span><input name="assunto" list="dl-ass" value="${esc(base.assunto)}" placeholder="Ex.: Licitações – modalidades">${dl('dl-ass', all.map((s) => s.assunto))}</label>
     <div class="field"><span>Fonte</span><div class="chips">${SOURCES.map((src) => `<label class="chip"><input type="radio" name="fonte" value="${src}" ${base.fonte === src ? 'checked' : ''}><span>${src}</span></label>`).join('')}</div></div>
     <label class="field" id="src-other"><span>Qual fonte?</span><input name="fonteOutra" value="${esc(base.fonteOutra || '')}" placeholder="Ex.: livro, YouTube, apostila"></label>
     <div class="row gap"><label class="field grow"><span>Data</span><input type="date" name="date" value="${base.date}"></label>
-    <label class="field grow"><span>Início</span><input type="time" name="start" value="${base.start || (isNew ? nowHM() : '')}"></label></div>
+    </div>
+    ${timeRangeFields(base.start || (fromTimer ? rng.start : isNew ? nowHM() : ''), base.end || (fromTimer ? rng.end : ''))}
     ${durationField(mins, 'Tempo de estudo')}
     <label class="field"><span>Observação / onde parei</span><textarea name="obs" rows="4" placeholder="Ex.: parei na aula 5, página 120, revisar o art. 37...">${esc(base.obs || '')}</textarea></label>
     <button class="btn primary block">Salvar estudo</button>
     ${isNew ? '' : '<button type="button" class="btn danger-ghost block" id="del-st">Excluir registro</button>'}</form>`, {
     onMount: (root) => {
+      bindTimeRange(root);
       const sync = () => { root.querySelector('#src-other').hidden = root.querySelector('[name=fonte]:checked')?.value !== 'Outras fontes'; };
       root.addEventListener('change', sync); sync();
       root.querySelector('#del-st')?.addEventListener('click', () => confirmSheet('Excluir registro?', 'Este estudo sai do histórico.', 'Excluir', () => {
@@ -122,7 +125,7 @@ function studySheet(x, { seconds = 0, fromTimer = false, prefill } = {}) {
     onSubmit: (fd) => {
       const m = readDuration(fd);
       const data = { materia: fd.get('materia').trim(), assunto: fd.get('assunto').trim(), fonte: fd.get('fonte') || 'Outras fontes',
-        fonteOutra: fd.get('fonteOutra').trim(), date: fd.get('date') || dateKey(), start: fd.get('start') || '', obs: fd.get('obs').trim(),
+        fonteOutra: fd.get('fonteOutra').trim(), date: fd.get('date') || dateKey(), start: fd.get('start') || '', end: fd.get('end') || '', obs: fd.get('obs').trim(),
         seconds: fromTimer && m === mins ? Math.round(seconds) : Math.round(m * 60) };
       if (!data.materia) return false;
       if (isNew) {
