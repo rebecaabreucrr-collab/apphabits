@@ -2,6 +2,7 @@
 import { state, save } from './store.js';
 import { esc, dateKey, addDays, fmtShort, fmtLong, uid, pad } from './utils.js';
 import { A, C, ui, sheet, rerender, toast, empty, pageHead, opt, ring, confirmSheet, go, bar } from './ui.js';
+import { COLORS } from './defaults.js';
 import { medPerDay, medTakes, medTaken, addMedTake, removeMedTake } from './logic.js';
 
 const UNITS = ['cápsula', 'comprimido', 'gota', 'ml', 'sachê', 'dose'];
@@ -87,7 +88,7 @@ function medSheet(m) {
     <label class="field"><span>Para que serve</span><input name="purpose" value="${esc(x.info?.purpose || '')}"></label>
     <label class="field"><span>Dose / como tomar</span><input name="dose" value="${esc(x.info?.dose || '')}" placeholder="Ex.: após as refeições"></label>
     <label class="field"><span>Observações</span><textarea name="notes" rows="2" placeholder="Médico, estoque, cuidados...">${esc(x.info?.notes || '')}</textarea></label>
-    <div class="field"><span>Cor</span><div class="color-row">${['rose', 'violet', 'sky'].map((c) => `<label><input type="radio" name="color" value="${c}" ${c === x.color ? 'checked' : ''}><span class="dot bg-${c}"></span></label>`).join('')}</div></div>
+    <div class="field"><span>Cor</span><div class="color-row">${COLORS.map((c) => `<label><input type="radio" name="color" value="${c}" ${c === x.color ? 'checked' : ''}><span class="dot bg-${c}"></span></label>`).join('')}</div></div>
     <label class="toggle-line"><input type="checkbox" name="active" ${x.active ? 'checked' : ''}><span>Em uso (aparece na rotina do dia)</span></label>
     <button class="btn primary block mt">${isNew ? 'Adicionar' : 'Salvar'}</button>
     ${isNew ? '' : '<button type="button" class="btn danger-ghost block" id="del-med">Excluir remédio</button>'}</form>`, {

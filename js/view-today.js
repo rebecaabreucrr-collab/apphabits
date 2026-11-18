@@ -6,7 +6,7 @@ import { tasksFor, isDone, toggleDone, dayProgress, findTask, hairDay, workoutFo
   activeChallenge, challengeDay, goalDone, nextWashes, peekSkin, setDone, dayScore, hairStepsFor, taskStatus, waterTotal, addWater, undoWater,
   medPerDay, medTaken } from './logic.js';
 import { cycleWheel } from './view-cycle.js';
-import { studyDay } from './view-study.js';
+import { studyDay, englishDay, lastSession, TRACKS } from './view-study.js';
 import { MASKS, PHRASES } from './defaults.js';
 import { taskSheet, avatarHtml } from './forms.js';
 import { bar } from './ui.js';
@@ -73,6 +73,7 @@ function subtitle(t, k) {
     }
     case 'palavra': parts.push('Toque para ouvir'); break;
     case 'estudo': { const sec = studyDay(k); parts.push(sec ? `${fmtMinutes(sec / 60)} estudados hoje` : 'Toque para abrir o cronômetro'); break; }
+    case 'ingles': { const sec = englishDay(k); parts.push(sec ? `${fmtMinutes(sec / 60)} de inglês hoje` : 'Toque para abrir o cronômetro'); break; }
     case 'remedio': {
       const md = state.meds.find((x) => x.id === t.medId);
       parts.push(`${t.qty} ${md?.unit || 'dose'}${t.qty > 1 ? 's' : ''} · ${medTaken(k, t.medId)}/${md ? medPerDay(md) : 0} hoje`);
@@ -89,7 +90,7 @@ function subtitle(t, k) {
 
 function taskRow(t, k, highlight) {
   const done = !!isDone(t, k);
-  const special = ['treino', 'skincare', 'cabelo', 'leitura', 'palavra', 'remedio', 'estudo'].includes(t.type);
+  const special = ['treino', 'skincare', 'cabelo', 'leitura', 'palavra', 'remedio', 'estudo', 'ingles'].includes(t.type);
   return `<li class="task ${done ? 'done' : ''} ${highlight ? 'now' : ''}">
     <div class="t-time">${esc(t.time || '—')}</div>
     <button class="t-main" data-act="openTask" data-id="${t.id}">
@@ -192,14 +193,14 @@ function tileMap(k) {
   const w = workoutFor(k);
   const wl = state.workoutLog[k];
   const wn = w && wl ? w.exercises.filter((e) => wl.ex[e.id]).length : 0;
-  T.treino = `<a class="tile t-rose" href="#/treino?d=${k}"><span class="tile-ico">🏋️‍♀️</span><div><b>${w ? esc(w.name) : 'Descanso'}</b>
+  T.treino = `<a class="tile t-rose" href="#/treino?d=${k}"><span class="tile-ico ic-${w?.color || 'rose'}">🏋️‍♀️</span><div><b>${w ? esc(w.name) : 'Descanso'}</b>
     <small>${w ? `${wn}/${w.exercises.length} exercícios` : 'sem treino hoje'}</small>${w ? bar(wn / (w.exercises.length || 1)) : ''}</div></a>`;
   const meds = state.meds.filter((m) => m.active);
   if (meds.length) {
     const nx = nextMed(k);
     if (nx) {
       const { m, time } = nx; const tot = medPerDay(m), tk = Math.min(medTaken(k, m.id), tot);
-      T.remedios = `<a class="tile t-sky" href="#/remedios"><span class="tile-ico">💊</span><div><b>${esc(m.name)}</b>
+      T.remedios = `<a class="tile t-sky" href="#/remedios"><span class="tile-ico ic-${m.color || 'violet'}">💊</span><div><b>${esc(m.name)}</b>
         <small>${time} · ${tk}/${tot} ${unitPl(tot, m.unit)}</small>${bar(tot ? tk / tot : 0)}</div></a>`;
     } else {
       const tot = meds.reduce((a, m) => a + medPerDay(m), 0);
@@ -220,6 +221,9 @@ function tileMap(k) {
   const lastSt = [...state.study.sessions].sort((a, b) => (b.date + (b.start || '')).localeCompare(a.date + (a.start || '')))[0];
   T.estudo = `<a class="tile t-sky" href="#/estudo"><span class="tile-ico">📚</span><div><b>${fmtMinutes(st / 60)} de estudo</b>
     <small>${lastSt ? esc(lastSt.materia) : 'Estudo de hoje'}</small></div></a>`;
+  const en = englishDay(k); const lastEn = lastSession(TRACKS.ingles);
+  T.ingles = `<a class="tile t-violet" href="#/ingles"><span class="tile-ico">💬</span><div><b>${fmtMinutes(en / 60)} de inglês</b>
+    <small>${lastEn ? esc(lastEn.materia) : 'Inglês de hoje'}</small></div></a>`;
   const r = readingDay(k);
   const b = state.books.find((x) => x.id === state.reading.activeBookId);
   const bp = b && b.pages ? (b.current || 0) / b.pages : 0;
@@ -271,6 +275,10 @@ function sideSquare(k) {
     const sec = studyDay(k);
     const goal = 120 * 60;
     return sq('#/estudo', 'Estudo', 'meta 2h', ring(sec / goal, { size: 104, stroke: 10, label: fmtMinutes(sec / 60), sub: 'hoje' }), 'Toque para estudar');
+  }
+  if (kind === 'ingles') {
+    const sec = englishDay(k);
+    return sq('#/ingles', 'Inglês', 'meta 1h', ring(sec / 3600, { size: 104, stroke: 10, label: fmtMinutes(sec / 60), sub: 'hoje' }), 'Toque para praticar');
   }
   if (kind === 'remedios') {
     const meds = state.meds.filter((m) => m.active);
@@ -429,6 +437,7 @@ A.openTask = (el) => {
   if (t.type === 'leitura') return go('#/leitura');
   if (t.type === 'remedio') return go('#/remedios');
   if (t.type === 'estudo') return go('#/estudo');
+  if (t.type === 'ingles') return go('#/ingles');
   const done = !!isDone(t, k);
   sheet(`${t.icon || ''} ${t.title}`, `
     <p class="muted">${t.time ? `${t.time}${t.end ? ' – ' + t.end : ''} · ` : ''}${state.routine.includes(t) ? 'Rotina fixa (' + t.days.map((d) => WD[d]).join(', ') + ')' : 'Só neste dia'}</p>

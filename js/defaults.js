@@ -22,6 +22,7 @@ export const TASK_TYPES = {
   cabelo: 'Cronograma capilar (só nos dias de lavar)',
   leitura: 'Leitura com cronômetro',
   estudo: 'Estudo com cronômetro',
+  ingles: 'Inglês com cronômetro',
 };
 
 export const COLORS = ['rose', 'violet', 'amber', 'sky', 'emerald', 'orange', 'pink', 'slate'];
@@ -146,6 +147,7 @@ export function defaultState() {
     medLog: {},
 
     study: { sessions: [], timer: { running: false, startedAt: null, acc: 0 } },
+    english: { sessions: [], timer: { running: false, startedAt: null, acc: 0 } },
 
     settings: {
       layout: 'rosa', // rosa | lavanda | ceu | minimal
@@ -189,6 +191,7 @@ export const TAB_DEFS = {
   ciclo: { label: 'Ciclo', icon: 'flower' },
   remedios: { label: 'Remédios', icon: 'pill' },
   estudo: { label: 'Estudo', icon: 'books' },
+  ingles: { label: 'Inglês', icon: 'chat' },
   treinos: { label: 'Treinos', icon: 'dumbbell' },
   rotina: { label: 'Rotina', icon: 'calendar' },
   mais: { label: 'Mais', icon: 'dots' },
@@ -200,14 +203,14 @@ export const LAYOUTS = {
   minimal: { name: 'Minimalista', desc: 'Claro, com detalhes rosa' },
 };
 export const CARD_NAMES = {
-  desafio: 'Desafio', treino: 'Treino', remedios: 'Remédios', estudo: 'Estudo', cabelo: 'Cabelo', leitura: 'Leitura', skincare: 'Skincare',
+  desafio: 'Desafio', treino: 'Treino', remedios: 'Remédios', estudo: 'Estudo', ingles: 'Inglês', cabelo: 'Cabelo', leitura: 'Leitura', skincare: 'Skincare',
   agua: 'Água', ciclo: 'Meu ciclo',
 };
-export const SQUARE_NAMES = { nenhum: 'Nenhum', ciclo: 'Meu ciclo', agua: 'Água', desafio: 'Desafio', leitura: 'Leitura', estudo: 'Estudo', remedios: 'Remédios' };
+export const SQUARE_NAMES = { nenhum: 'Nenhum', ciclo: 'Meu ciclo', agua: 'Água', desafio: 'Desafio', leitura: 'Leitura', estudo: 'Estudo', ingles: 'Inglês', remedios: 'Remédios' };
 export function defaultHome() {
   return {
     square2: 'ciclo',
-    cards: ['desafio', 'treino', 'remedios', 'estudo', 'cabelo', 'leitura', 'skincare', 'agua', 'ciclo']
+    cards: ['desafio', 'treino', 'remedios', 'estudo', 'ingles', 'cabelo', 'leitura', 'skincare', 'agua', 'ciclo']
       .map((id) => ({ id, on: !['agua', 'ciclo'].includes(id) })),
     cardsLayout: 'grid',
     groupRoutine: true,

@@ -62,6 +62,15 @@ function migrate(s) {
     const [h, m] = String(r.time || '0:0').split(':').map(Number);
     r.slot = h * 60 + m < 15 * 60 ? 'manha' : 'noite';
   }
+  // aba Inglês (uma vez): entra na barra logo depois de Estudo
+  if (!s.profile.englishTab) {
+    s.profile.englishTab = true;
+    const tabs = s.settings.tabs || [];
+    if (!tabs.some((t) => t.id === 'ingles') && tabs.length < 5) {
+      const i = tabs.findIndex((t) => t.id === 'estudo');
+      tabs.splice(i >= 0 ? i + 1 : tabs.length, 0, { id: 'ingles', label: 'Inglês' });
+    }
+  }
   const H = defaultHome();
   s.settings.home ||= H;
   for (const k of Object.keys(H)) if (s.settings.home[k] === undefined) s.settings.home[k] = H[k];

@@ -98,6 +98,7 @@ const P = {
   perfume: '<rect x="5.5" y="9" width="13" height="12" rx="3"/><path d="M10 9V6.5h4V9M12 6.5V4M14 4h3M9 15h6"/>',
   eyedrop: '<path d="M2.5 12S6 6 12 6s9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"/><circle cx="12" cy="12" r="2.6"/><path d="M19.5 3.5s1.8 2 1.8 3.2a1.8 1.8 0 0 1-3.6 0c0-1.2 1.8-3.2 1.8-3.2z"/>',
   sponge: '<rect x="3.5" y="7" width="17" height="11" rx="3"/><path d="M3.5 11.5h17"/><circle cx="8" cy="14.8" r=".9"/><circle cx="12.5" cy="15.2" r=".9"/><circle cx="16.5" cy="14.5" r=".9"/><path d="M15 3.5l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6z"/>',
+  chat: '<path d="M4 5.5h16v10H9.5L5 19.5v-4H4z"/><path d="M8 9.5h8M8 12.5h5"/>',
   x: '<path d="M6 6l12 12M18 6 6 18"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
 };
@@ -112,7 +113,7 @@ const EMOJI = {
   '🚀': 'rocket', '🔄': 'refresh', '✏️': 'pencil', '🗓️': 'calendar', '⚙️': 'gear', '📲': 'mobile', '⬇︎': 'download', '⬆︎': 'upload',
   '⬇': 'download', '⬆': 'upload', '⏸': 'pause', '⏹': 'stop', '▶︎': 'play', '▶': 'play', '⏱️': 'timer', '📄': 'page', '📕': 'book',
   '📌': 'pin', '🌅': 'sunrise', '🕐': 'clock', '⏳': 'hourglass', '🌤️': 'cloud', '🥤': 'glass', '👤': 'user', '🎨': 'palette',
-  '🧩': 'grid', '📱': 'mobile', '🏠': 'home', '💦': 'drop', '🫶': 'heart', '💜': 'heart', '💗': 'heart', '🔔': 'clock', '🧪': 'dropper', '🫙': 'jar', '🪥': 'toothbrush', '🛡️': 'shield', '🧼': 'soap', '🫧': 'bubbles', '🪞': 'mirror',
+  '🧩': 'grid', '📱': 'mobile', '🏠': 'home', '💦': 'drop', '🫶': 'heart', '💜': 'heart', '💗': 'heart', '🔔': 'clock', '💬': 'chat', '🗣️': 'chat', '🧪': 'dropper', '🫙': 'jar', '🪥': 'toothbrush', '🛡️': 'shield', '🧼': 'soap', '🫧': 'bubbles', '🪞': 'mirror',
   '💆‍♀️': 'facemask', '🙂': 'face', '🧖‍♀️': 'towel', '💋': 'lips', '🤲': 'hand', '💅': 'nail', '🌿': 'branch', '🪒': 'razor', '🖌️': 'brush',
   '🪮': 'comb', '🛁': 'bath', '🌹': 'rose', '🧊': 'ice', '🥒': 'cucumber', '☁️': 'cotton', '🎀': 'tube', '🌀': 'roller', '🌸️': 'flower',
   '🍯': 'jar', '🌺': 'perfume', '👀': 'eyedrop', '👁': 'eye', '👁️': 'eye', '📷': 'camera', '📸': 'camera', '⏰': 'clock', 'ℹ️': 'note',

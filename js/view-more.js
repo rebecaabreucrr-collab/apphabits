@@ -40,6 +40,7 @@ function renderMore() {
   <section class="card menu">
     ${item('#/ciclo', '🌸', 'Meu ciclo', 'Menstruação, período fértil e ovulação', 'pink')}
     ${item('#/estudo', '📚', 'Estudo', 'Cronômetro, matérias, onde parei e histórico', 'sky')}
+    ${item('#/ingles', '💬', 'Inglês', 'Cronômetro, habilidades, onde parei e histórico', 'violet')}
     ${item('#/remedios', '💊', 'Remédios', 'Horários, doses e informações', 'violet')}
     ${item('#/rotina', '🗓️', 'Rotina fixa', 'Horários, dias da semana e tarefas da casa', 'violet')}
     ${item('#/treinos', '🏋️‍♀️', 'Treinos', 'Plano da semana e exercícios', 'rose')}
@@ -99,12 +100,12 @@ A.setLayout = (el) => { state.settings.layout = el.dataset.l; save(); rerender()
 A.setTheme = (el) => { state.settings.theme = el.dataset.t; save(); rerender(); };
 
 /* ---------- Abas ---------- */
-const OPTIONAL_TABS = ['desafio', 'estudo', 'leitura', 'cuidados', 'ciclo', 'remedios', 'treinos', 'rotina'];
+const OPTIONAL_TABS = ['desafio', 'estudo', 'ingles', 'leitura', 'cuidados', 'ciclo', 'remedios', 'treinos', 'rotina'];
 function renderTabs() {
   const on = state.settings.tabs;
   const off = OPTIONAL_TABS.filter((id) => !on.some((t) => t.id === id));
   return `${pageHead('Abas do menu', '#/mais')}
-  <p class="sub">Escolha até 4 abas para a barra de baixo, mude a ordem e o nome. "Hoje" e "Mais" ficam sempre.</p>
+  <p class="sub">Escolha até 5 abas para a barra de baixo, mude a ordem e o nome. "Hoje" e "Mais" ficam sempre.</p>
   <section class="card"><h2>Na barra</h2><ul class="mini-list tabs-edit">
     <li class="fixed"><span class="t-icon bg-soft-rose">${svg(TAB_DEFS.hoje.icon)}</span><div class="grow"><b>Hoje</b><small>fixa</small></div></li>
     ${on.map((t, i) => `<li><span class="t-icon bg-soft-violet">${svg(TAB_DEFS[t.id].icon)}</span>
@@ -119,7 +120,7 @@ function renderTabs() {
   <button class="btn ghost block" data-act="tabsReset">Voltar ao padrão</button>`;
 }
 A.tabOn = (el) => {
-  if (state.settings.tabs.length >= 4) return toast('Máximo de 4 abas — tire uma antes');
+  if (state.settings.tabs.length >= 5) return toast('Máximo de 5 abas — tire uma antes');
   state.settings.tabs.push({ id: el.dataset.id, label: TAB_DEFS[el.dataset.id].label }); save(); rerender();
 };
 A.tabOff = (el) => { state.settings.tabs.splice(Number(el.dataset.i), 1); save(); rerender(); };

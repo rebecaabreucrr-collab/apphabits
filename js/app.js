@@ -4,7 +4,7 @@ import { $, dateKey, fmtTimer, esc, greeting } from './utils.js';
 import { iconize, svg } from './icons.js';
 import { TAB_DEFS } from './defaults.js';
 import { routes as meds } from './view-meds.js';
-import { routes as study, studyElapsed } from './view-study.js';
+import { routes as study, studyElapsed, englishElapsed } from './view-study.js';
 import { A, C, ui, setRender, closeSheet, toast } from './ui.js';
 import { timerElapsed } from './logic.js';
 import { routes as today } from './view-today.js';
@@ -119,8 +119,10 @@ document.addEventListener('change', (e) => {
 setInterval(() => {
   const els = document.querySelectorAll('[data-timer]');
   if (els.length && state.reading.timer.running) els.forEach((el) => { el.textContent = fmtTimer(timerElapsed()); });
-  const st = document.querySelectorAll('[data-study-timer]');
-  if (st.length && state.study.timer.running) st.forEach((el) => { el.textContent = fmtTimer(studyElapsed()); });
+  document.querySelectorAll('[data-track-timer]').forEach((el) => {
+    const key = el.dataset.trackTimer;
+    if (state[key]?.timer.running) el.textContent = fmtTimer(key === 'study' ? studyElapsed() : englishElapsed());
+  });
 }, 1000);
 
 // virada do dia com o app aberto
