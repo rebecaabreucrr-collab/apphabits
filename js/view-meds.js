@@ -29,7 +29,8 @@ function medCard(m, k) {
 
 function renderMeds() {
   const k = dateKey();
-  const act = state.meds.filter((m) => m.active);
+  const first = (m) => [...m.schedule].map((x) => x.time).sort()[0] || '99:99';
+  const act = state.meds.filter((m) => m.active).sort((a, b) => first(a).localeCompare(first(b)));
   const total = act.reduce((a, m) => a + medPerDay(m), 0);
   const taken = act.reduce((a, m) => a + Math.min(medTaken(k, m.id), medPerDay(m)), 0);
   const inactive = state.meds.filter((m) => !m.active);

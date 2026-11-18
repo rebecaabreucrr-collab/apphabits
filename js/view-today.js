@@ -20,6 +20,18 @@ export function stepProgress(t, k) {
   if (t.type === 'remedio') { const m = state.meds.find((x) => x.id === t.medId); return m ? [Math.min(medTaken(k, m.id), medPerDay(m)), medPerDay(m)] : null; }
   return null;
 }
+const unitPl = (n, u = 'dose') => (n === 1 || u === 'ml' ? u : u.endsWith('ão') ? u.slice(0, -2) + 'ões' : u + 's');
+/** o remédio da vez: o primeiro (por horário) que ainda não foi tomado por completo */
+export function nextMed(k) {
+  const list = state.meds.filter((m) => m.active && medPerDay(m) > 0 && medTaken(k, m.id) < medPerDay(m))
+    .map((m) => {
+      let cum = 0; const taken = medTaken(k, m.id);
+      const slot = m.schedule.find((s) => { cum += Number(s.qty) || 0; return taken < cum; }) || m.schedule[0];
+      return { m, time: slot?.time || '' };
+    })
+    .sort((a, b) => toMin(a.time) - toMin(b.time));
+  return list[0] || null;
+}
 export function hairProgress(k) {
   const h = hairDay(k); if (!h.isWash) return null;
   const steps = hairStepsFor(h.mask, k); if (!steps.length) return null;
@@ -184,8 +196,16 @@ function tileMap(k) {
     <small>${w ? `${wn}/${w.exercises.length} exercícios` : 'sem treino hoje'}</small>${w ? bar(wn / (w.exercises.length || 1)) : ''}</div></a>`;
   const meds = state.meds.filter((m) => m.active);
   if (meds.length) {
-    const tot = meds.reduce((a, m) => a + medPerDay(m), 0), tk = meds.reduce((a, m) => a + Math.min(medTaken(k, m.id), medPerDay(m)), 0);
-    T.remedios = `<a class="tile t-sky" href="#/remedios"><span class="tile-ico">💊</span><div><b>${tk}/${tot} doses</b><small>Remédios</small>${bar(tot ? tk / tot : 0)}</div></a>`;
+    const nx = nextMed(k);
+    if (nx) {
+      const { m, time } = nx; const tot = medPerDay(m), tk = Math.min(medTaken(k, m.id), tot);
+      T.remedios = `<a class="tile t-sky" href="#/remedios"><span class="tile-ico">💊</span><div><b>${esc(m.name)}</b>
+        <small>${time} · ${tk}/${tot} ${unitPl(tot, m.unit)}</small>${bar(tot ? tk / tot : 0)}</div></a>`;
+    } else {
+      const tot = meds.reduce((a, m) => a + medPerDay(m), 0);
+      T.remedios = `<a class="tile t-sky" href="#/remedios"><span class="tile-ico">💊</span><div><b>Remédios ✓</b>
+        <small>tudo tomado · ${tot}/${tot} doses</small>${bar(1)}</div></a>`;
+    }
   }
   const nw = nextWashes(k, 1)[0];
   const hp = hairProgress(k);
