@@ -1,0 +1,4 @@
+# backups com dados pessoais nunca vão para o repositório
+wordpress/minha-rotina/includes/backup-inicial.php
+*.zip
+*backup*.json

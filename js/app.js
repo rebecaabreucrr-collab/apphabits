@@ -140,7 +140,7 @@ setInterval(checkDay, 60000);
 render();
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-  navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then((reg) => {
+  navigator.serviceWorker.register(new URL('../sw.js', import.meta.url), { updateViaCache: 'none' }).then((reg) => {
     reg.update();
     document.addEventListener('visibilitychange', () => { if (!document.hidden) reg.update(); });
   }).catch((e) => console.warn('SW', e));

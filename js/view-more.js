@@ -81,7 +81,8 @@ A.forceUpdate = async () => {
     const keys = (await caches?.keys?.()) || [];
     await Promise.all(keys.map((k) => caches.delete(k)));
   } catch { /* segue */ }
-  setTimeout(() => location.replace(location.pathname + '?v=' + Date.now() + '#/mais'), 600);
+  const q = new URLSearchParams(location.search); q.set('v', Date.now());
+  setTimeout(() => location.replace(location.pathname + '?' + q.toString() + '#/mais'), 600);
 };
 C.waterGoal = (el) => { state.water.goal = Number(el.value); save(); toast('Meta de água atualizada'); rerender(); };
 
