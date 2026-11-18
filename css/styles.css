@@ -673,3 +673,5 @@ body.locked .view { padding-bottom: calc(var(--safe-bottom) + 24px); }
 .t-bar i { display: block; height: 100%; border-radius: inherit; background: var(--bar-grad); transition: width .4s ease; }
 .t-bar.full i { background: var(--ok); }
 .tile .bar span { transition: width .4s ease; }
+.update-card { display: flex; align-items: center; gap: 12px; }
+.update-card b { display: block; }

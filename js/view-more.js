@@ -6,6 +6,7 @@ import { taskSheet, avatarHtml, photoToDataUrl } from './forms.js';
 import { COLORS, TASK_TYPES, LAYOUTS, TAB_DEFS, DASH_NAMES, CARD_NAMES, SQUARE_NAMES, defaultHome, defaultState, PHRASES } from './defaults.js';
 import { svg } from './icons.js';
 import { authEnabled, isLoggedIn, currentUser, changePassword } from './auth.js';
+import { APP_VERSION } from './config.js';
 import { toMin } from './utils.js';
 
 const item = (href, icon, title, sub, color = 'rose') => `<a class="menu-item" href="${href}"><span class="t-icon bg-soft-${color}">${icon}</span>
@@ -51,6 +52,8 @@ function renderMore() {
     ${item('#/config', '⚙️', 'Backup', 'Salvar e restaurar seus dados', 'slate')}
     ${item('#/instalar', '📲', 'Instalar no iPhone', 'Coloque o app na tela de início', 'violet')}
   </section>
+  <section class="card update-card"><div class="grow"><b>Versão ${APP_VERSION}</b><small>Se uma mudança não apareceu, toque em atualizar.</small></div>
+    <button class="btn small ghost" data-act="forceUpdate">🔄 Atualizar o app agora</button></section>
   <p class="center small muted">Minha Rotina · seus dados ficam salvos só neste aparelho</p>`;
 }
 C.profilePhoto = async (el) => {
@@ -69,6 +72,16 @@ A.pwChange = () => sheet('Trocar senha', `<form class="form">
     changePassword(pw).then(() => toast('Senha alterada 💜')).catch((e) => toast(e.message));
   },
 });
+A.forceUpdate = async () => {
+  toast('Atualizando… seus dados continuam salvos');
+  try {
+    const regs = (await navigator.serviceWorker?.getRegistrations?.()) || [];
+    await Promise.all(regs.map((r) => r.unregister()));
+    const keys = (await caches?.keys?.()) || [];
+    await Promise.all(keys.map((k) => caches.delete(k)));
+  } catch { /* segue */ }
+  setTimeout(() => location.replace(location.pathname + '?v=' + Date.now() + '#/mais'), 600);
+};
 C.waterGoal = (el) => { state.water.goal = Number(el.value); save(); toast('Meta de água atualizada'); rerender(); };
 
 /* ---------- Aparência ---------- */

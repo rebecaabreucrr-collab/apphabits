@@ -191,8 +191,11 @@ function tileMap(k) {
   const hp = hairProgress(k);
   if (hp) T.cabelo = `<a class="tile t-sky" href="#/cabelo?d=${k}"><span class="tile-ico">${MASKS[hairDay(k).mask].icon}</span><div>
     <b>${hp[0] >= hp[1] ? 'Cabelo feito ✓' : 'Lavar hoje'}</b><small>${MASKS[hairDay(k).mask].label} · ${hp[0]}/${hp[1]} etapas</small>${bar(hp[0] / hp[1])}</div></a>`;
-  else if (nw) T.cabelo = `<a class="tile t-sky" href="#/cabelo?d=${nw.date}"><span class="tile-ico">${MASKS[nw.mask].icon}</span><div>
-    <b>${fmtRel(nw.date, k).replace(/ \(.*\)/, '')}</b><small>Cabelo · ${MASKS[nw.mask].label}</small></div></a>`;
+  else if (nw) {
+    const np = hairStepsFor(nw.mask, nw.date).length;
+    T.cabelo = `<a class="tile t-sky" href="#/cabelo?d=${nw.date}"><span class="tile-ico">${MASKS[nw.mask].icon}</span><div>
+    <b>Lavar ${fmtRel(nw.date, k).replace(/ \(.*\)/, '')}</b><small>${MASKS[nw.mask].label} · 0/${np} etapas</small>${bar(0)}</div></a>`;
+  }
   const st = studyDay(k);
   const lastSt = [...state.study.sessions].sort((a, b) => (b.date + (b.start || '')).localeCompare(a.date + (a.start || '')))[0];
   T.estudo = `<a class="tile t-sky" href="#/estudo"><span class="tile-ico">📚</span><div><b>${fmtMinutes(st / 60)} de estudo</b>
