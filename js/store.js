@@ -57,6 +57,11 @@ function migrate(s) {
   for (const r of Object.values(s.skincare || {})) for (const st of r.steps || []) {
     if (!st.icon) st.icon = guessSkinIcon((s.products || []).find((p) => p.id === st.productId)?.name || '');
   }
+  // estudo: cada horário vira "manhã" ou "noite"
+  for (const r of s.routine || []) if (r.type === 'estudo' && !r.slot) {
+    const [h, m] = String(r.time || '0:0').split(':').map(Number);
+    r.slot = h * 60 + m < 15 * 60 ? 'manha' : 'noite';
+  }
   const H = defaultHome();
   s.settings.home ||= H;
   for (const k of Object.keys(H)) if (s.settings.home[k] === undefined) s.settings.home[k] = H[k];

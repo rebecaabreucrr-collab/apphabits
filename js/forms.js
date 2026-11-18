@@ -147,3 +147,18 @@ export function photoToDataUrl(file, size = 320) {
     img.src = url;
   });
 }
+
+/** campo de tempo com horas e minutos */
+export function durationField(totalMin = 0, label = 'Tempo') {
+  totalMin = Math.max(0, Math.round(totalMin || 0));
+  const h = Math.floor(totalMin / 60), m = totalMin % 60;
+  return `<div class="field"><span>${label}</span><div class="dur">
+    <label><input type="number" inputmode="numeric" name="hh" min="0" max="23" value="${totalMin ? h : ''}" placeholder="0" aria-label="Horas"><span>h</span></label>
+    <label><input type="number" inputmode="numeric" name="mm" min="0" max="59" value="${totalMin ? m : ''}" placeholder="0" aria-label="Minutos"><span>min</span></label>
+  </div></div>`;
+}
+/** lê o campo de tempo e devolve o total em minutos */
+export const readDuration = (src) => {
+  const get = (n) => (src instanceof FormData ? src.get(n) : src.querySelector(`[name=${n}]`)?.value);
+  return Math.max(0, Number(get('hh') || 0)) * 60 + Math.max(0, Number(get('mm') || 0));
+};

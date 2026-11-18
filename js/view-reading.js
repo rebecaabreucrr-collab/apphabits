@@ -3,6 +3,7 @@ import { state, save } from './store.js';
 import { esc, dateKey, fmtTimer, fmtMinutes, fmtShort, uid } from './utils.js';
 import { A, C, ui, sheet, rerender, toast, empty, pageHead, bar, opt, ring, go, confirmSheet } from './ui.js';
 import { timerElapsed, readingDay, bookStats, markTypeDone } from './logic.js';
+import { durationField, readDuration } from './forms.js';
 
 const T = () => state.reading.timer;
 export const bookStart = (b) => b.started || state.reading.sessions.filter((x) => x.bookId === b.id).map((x) => x.date).sort()[0] || b.created || null;
@@ -73,7 +74,7 @@ function sessionSheet({ seconds = 0, fromTimer = false } = {}) {
       <label class="field grow"><span>Comecei na pág.</span><input type="number" inputmode="numeric" name="from" id="sf" value="${b.current || 0}" min="0"></label>
       <label class="field grow"><span>Parei na pág.</span><input type="number" inputmode="numeric" name="to" id="st" value="" min="0" placeholder="${b.current || 0}" autofocus></label>
     </div>
-    <label class="field"><span>Tempo (minutos)</span><input type="number" inputmode="numeric" name="min" id="sm" value="${seconds ? mins : ''}" min="0" required></label>
+    ${durationField(seconds ? mins : 0, 'Tempo de leitura')}
     <p class="preview" id="sp"></p>
     <label class="field"><span>Anotações do que li hoje</span><textarea name="notes" rows="5" placeholder="Ideias, frases marcantes, resumo do capítulo..."></textarea></label>
     <button class="btn primary block">Salvar leitura</button></form>`, {
@@ -81,8 +82,8 @@ function sessionSheet({ seconds = 0, fromTimer = false } = {}) {
       const $ = (id) => root.querySelector(id);
       const upd = () => {
         const p = Math.max(0, Number($('#st').value || 0) - Number($('#sf').value || 0));
-        const m = Number($('#sm').value || 0);
-        $('#sp').textContent = $('#st').value ? `📖 ${p} páginas em ${m} min${m ? ` · ${(p / m).toFixed(1)} pág/min` : ''}` : '';
+        const m = readDuration(root);
+        $('#sp').textContent = $('#st').value ? `📖 ${p} páginas em ${fmtMinutes(m)}${m ? ` · ${(p / m).toFixed(1)} pág/min` : ''}` : '';
       };
       $('#sb').addEventListener('change', () => { const x = state.books.find((y) => y.id === $('#sb').value); $('#sf').value = x?.current || 0; upd(); });
       root.addEventListener('input', upd);
@@ -90,7 +91,8 @@ function sessionSheet({ seconds = 0, fromTimer = false } = {}) {
     onSubmit: (fd) => {
       const book = state.books.find((x) => x.id === fd.get('book'));
       const from = Number(fd.get('from') || 0); const to = Number(fd.get('to') || from);
-      const m = Number(fd.get('min') || 0);
+      const m = readDuration(fd);
+      if (!m) { toast('Coloque quanto tempo você leu'); return false; }
       const secs = fromTimer && m === mins ? Math.round(seconds) : Math.round(m * 60);
       if (to < from) { toast('A página final deve ser maior que a inicial'); return false; }
       state.reading.sessions.push({ id: uid(), date: dateKey(), bookId: book.id, seconds: secs, from, to, notes: fd.get('notes').trim() });

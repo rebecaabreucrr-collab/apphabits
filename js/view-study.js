@@ -1,6 +1,7 @@
 // Estudo: cronômetro, matéria/assunto/fonte, onde parei, horários e histórico.
 import { state, save } from './store.js';
-import { esc, dateKey, addDays, fmtTimer, fmtMinutes, fmtShort, fmtLong, uid, pad, toMin, weekStart } from './utils.js';
+import { esc, dateKey, addDays, fmtTimer, fmtMinutes, fmtShort, fmtLong, uid, pad, toMin, weekStart, WD } from './utils.js';
+import { durationField, readDuration } from './forms.js';
 import { A, C, ui, sheet, rerender, toast, empty, opt, confirmSheet } from './ui.js';
 import { setDone, isDone, tasksFor } from './logic.js';
 
@@ -11,7 +12,31 @@ const nowHM = () => { const d = new Date(); return `${pad(d.getHours())}:${pad(d
 export const studyElapsed = () => { const t = T(); return t.acc + (t.running && t.startedAt ? (Date.now() - t.startedAt) / 1000 : 0); };
 export const studyDay = (k) => S().sessions.filter((x) => x.date === k).reduce((a, x) => a + (x.seconds || 0), 0);
 const srcLabel = (x) => (x.fonte === 'Outras fontes' && x.fonteOutra ? x.fonteOutra : x.fonte) || '';
-const slots = () => state.routine.filter((r) => r.type === 'estudo').sort((a, b) => toMin(a.time) - toMin(b.time));
+const SLOTS = {
+  manha: { label: '☀️ Manhã', time: '08:00', end: '10:00', title: 'Estudar (manhã)' },
+  noite: { label: '🌙 Noite', time: '19:00', end: '21:00', title: 'Estudar (noite)' },
+};
+const slotOf = (r) => r.slot || (toMin(r.time) < 15 * 60 ? 'manha' : 'noite');
+const slotItem = (key) => state.routine.find((r) => r.type === 'estudo' && slotOf(r) === key);
+
+function slotBlock(key) {
+  const d = SLOTS[key]; const r = slotItem(key);
+  const on = !!(r && r.days.length);
+  return `<div class="st-slot2 ${on ? 'on' : ''}">
+    <label class="toggle-row"><span><b>${d.label}</b><small>${on ? r.days.length === 7 ? 'todos os dias' : `${r.days.length} dia${r.days.length > 1 ? 's' : ''} por semana` : 'desligado'}</small></span>
+      <input type="checkbox" class="switch" data-change="studySlotOn" data-slot="${key}" ${on ? 'checked' : ''}></label>
+    ${on ? `<div class="st-times"><input type="time" value="${r.time}" data-change="studySlot" data-id="${r.id}" data-f="time"><span>até</span>
+      <input type="time" value="${r.end || ''}" data-change="studySlot" data-id="${r.id}" data-f="end"></div>
+      <div class="chips st-days">${[1, 2, 3, 4, 5, 6, 0].map((wd) => `<button class="chip ${r.days.includes(wd) ? 'on' : ''}" data-act="studySlotDay" data-slot="${key}" data-d="${wd}">${WD[wd]}</button>`).join('')}</div>` : ''}
+  </div>`;
+}
+function weekOverview() {
+  const m = slotItem('manha'), n = slotItem('noite');
+  return `<div class="st-week">${[1, 2, 3, 4, 5, 6, 0].map((wd) => {
+    const a = m?.days.includes(wd), b = n?.days.includes(wd);
+    return `<div class="${a || b ? 'has' : ''}"><small>${WD[wd]}</small><span>${a ? '☀️' : ''}${b ? '🌙' : ''}${!a && !b ? '–' : ''}</span></div>`;
+  }).join('')}</div>`;
+}
 
 function sessionCard(x) {
   return `<article class="st-item">
@@ -42,7 +67,6 @@ function renderStudy() {
     : el > 0
       ? `<button class="btn glass grow" data-act="studyStart">▶︎ Continuar</button><button class="btn white grow" data-act="studyFinish">⏹ Finalizar</button><button class="btn glass" data-act="studyReset" aria-label="Zerar">↺</button>`
       : `<button class="btn white grow big" data-act="studyStart">▶︎ Começar a estudar</button>`;
-  const [s1, s2] = slots();
   return `<header class="page-head top"><h1>Estudo</h1><div class="ph-right"><button class="link" data-act="studyNew">+ Registrar</button></div></header>
   <section class="card timer-card bg-grad-sky ${t.running ? 'running' : ''}">
     <small>${t.running ? 'Estudando…' : el > 0 ? 'Pausado' : 'Cronômetro de estudo'}</small>
@@ -57,12 +81,9 @@ function renderStudy() {
   </div>
   ${last ? `<section class="card resume-card"><div class="card-head"><h2>📌 Continuar de onde parei</h2><small>${fmtShort(last.date)}</small></div>${sessionCard(last)}</section>` : ''}
   <section class="card"><div class="card-head"><h2>⏰ Horários de estudo</h2></div>
-    <div class="st-slot"><b>1º horário</b>${s1 ? `<input type="time" value="${s1.time}" data-change="studySlot" data-id="${s1.id}" data-f="time"> até
-      <input type="time" value="${s1.end || ''}" data-change="studySlot" data-id="${s1.id}" data-f="end">` : '<button class="btn small ghost" data-act="studySlotAdd" data-n="1">+ Adicionar</button>'}</div>
-    <div class="st-slot"><b>2º horário</b>${s2 ? `<input type="time" value="${s2.time}" data-change="studySlot" data-id="${s2.id}" data-f="time"> até
-      <input type="time" value="${s2.end || ''}" data-change="studySlot" data-id="${s2.id}" data-f="end">
-      <button class="icon-btn sm" data-act="studySlotDel" data-id="${s2.id}" aria-label="Remover">✕</button>` : `<button class="btn small ghost" data-act="studySlotAdd" data-n="2">+ Estudar à noite também</button>`}</div>
-    <small>Os horários aparecem na rotina do dia${s1 ? ` (${s1.days.length === 7 ? 'todos os dias' : 'nos mesmos dias da rotina'})` : ''}. Para mudar os dias, edite em Mais → Rotina fixa.</small>
+    <p class="small muted">Ligue manhã, noite ou os dois e marque os dias de cada um. Eles aparecem na rotina do dia.</p>
+    ${Object.keys(SLOTS).map(slotBlock).join('')}
+    ${weekOverview()}
   </section>
   <section><div class="card-head pad"><h2>📖 Histórico de estudo</h2></div>
     ${materias.length > 1 ? `<div class="chips scroll">${['', ...materias].map((m) => `<button class="chip ${f === m ? 'on' : ''}" data-act="studyFilter" data-m="${esc(m)}">${m ? esc(m) : 'Todas'}</button>`).join('')}</div>` : ''}
@@ -86,8 +107,8 @@ function studySheet(x, { seconds = 0, fromTimer = false, prefill } = {}) {
     <div class="field"><span>Fonte</span><div class="chips">${SOURCES.map((src) => `<label class="chip"><input type="radio" name="fonte" value="${src}" ${base.fonte === src ? 'checked' : ''}><span>${src}</span></label>`).join('')}</div></div>
     <label class="field" id="src-other"><span>Qual fonte?</span><input name="fonteOutra" value="${esc(base.fonteOutra || '')}" placeholder="Ex.: livro, YouTube, apostila"></label>
     <div class="row gap"><label class="field grow"><span>Data</span><input type="date" name="date" value="${base.date}"></label>
-    <label class="field grow"><span>Início</span><input type="time" name="start" value="${base.start || (isNew ? nowHM() : '')}"></label>
-    <label class="field grow"><span>Minutos</span><input type="number" inputmode="numeric" name="min" min="0" value="${mins || ''}"></label></div>
+    <label class="field grow"><span>Início</span><input type="time" name="start" value="${base.start || (isNew ? nowHM() : '')}"></label></div>
+    ${durationField(mins, 'Tempo de estudo')}
     <label class="field"><span>Observação / onde parei</span><textarea name="obs" rows="4" placeholder="Ex.: parei na aula 5, página 120, revisar o art. 37...">${esc(base.obs || '')}</textarea></label>
     <button class="btn primary block">Salvar estudo</button>
     ${isNew ? '' : '<button type="button" class="btn danger-ghost block" id="del-st">Excluir registro</button>'}</form>`, {
@@ -99,7 +120,7 @@ function studySheet(x, { seconds = 0, fromTimer = false, prefill } = {}) {
       }));
     },
     onSubmit: (fd) => {
-      const m = Number(fd.get('min') || 0);
+      const m = readDuration(fd);
       const data = { materia: fd.get('materia').trim(), assunto: fd.get('assunto').trim(), fonte: fd.get('fonte') || 'Outras fontes',
         fonteOutra: fd.get('fonteOutra').trim(), date: fd.get('date') || dateKey(), start: fd.get('start') || '', obs: fd.get('obs').trim(),
         seconds: fromTimer && m === mins ? Math.round(seconds) : Math.round(m * 60) };
@@ -139,13 +160,28 @@ A.studyResume = (el) => {
 };
 A.studyFilter = (el) => { ui.studyFilter = el.dataset.m; rerender(); };
 C.studySlot = (el) => { const r = state.routine.find((x) => x.id === el.dataset.id); if (!r) return; r[el.dataset.f] = el.value; save(); toast('Horário salvo'); rerender(); };
-A.studySlotAdd = (el) => {
-  const first = slots()[0];
-  const n = el.dataset.n === '2';
-  state.routine.push({ id: uid(), time: n ? '19:00' : '08:00', end: n ? '21:00' : '10:00', title: n ? 'Estudar (noite)' : 'Estudar', icon: '📚', color: 'sky',
-    days: first ? [...first.days] : [1, 2, 3, 4, 5], type: 'estudo' });
-  save(); toast('Horário adicionado à rotina'); rerender();
+C.studySlotOn = (el) => {
+  const key = el.dataset.slot; const d = SLOTS[key];
+  let r = slotItem(key);
+  if (el.checked) {
+    if (!r) { r = { id: uid(), slot: key, time: d.time, end: d.end, title: d.title, icon: '📚', color: 'sky', days: [], type: 'estudo' }; state.routine.push(r); }
+    r.slot = key;
+    r.days = r.lastDays?.length ? [...r.lastDays] : [1, 2, 3, 4, 5];
+    toast(`${d.label.split(' ')[1]} ligada`);
+  } else if (r) {
+    if (r.days.length) r.lastDays = [...r.days];
+    r.days = [];
+    toast(`${d.label.split(' ')[1]} desligada`);
+  }
+  save(); rerender();
 };
-A.studySlotDel = (el) => { state.routine = state.routine.filter((r) => r.id !== el.dataset.id); save(); rerender(); };
+A.studySlotDay = (el) => {
+  const r = slotItem(el.dataset.slot); if (!r) return;
+  const wd = Number(el.dataset.d);
+  r.slot = el.dataset.slot;
+  r.days = r.days.includes(wd) ? r.days.filter((x) => x !== wd) : [...r.days, wd];
+  if (r.days.length) r.lastDays = [...r.days];
+  save(); rerender();
+};
 
 export const routes = { estudo: { render: renderStudy, tab: 'estudo' } };
