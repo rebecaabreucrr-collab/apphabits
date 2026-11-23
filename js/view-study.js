@@ -25,6 +25,59 @@ export const TRACKS = {
 };
 export const SOURCES = TRACKS.estudo.sources;
 
+/* ---------------- pomodoro (foco e pausa) ---------------- */
+const POMO = (cfg) => (state[cfg.key].pomo ||= { on: false, phase: 'foco', endsAt: null, left: null, cycles: 0 });
+const focusMin = (k) => Number(state.focus?.[k]) || (k === 'foco' ? 25 : 5);
+function pomoStop(cfg) { Object.assign(POMO(cfg), { phase: 'foco', endsAt: null, left: null, cycles: 0 }); }
+const pomoRemaining = (p) => (p.endsAt ? Math.max(0, (p.endsAt - Date.now()) / 1000) : p.left != null ? p.left / 1000 : focusMin('foco') * 60);
+function beep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [0, 0.25, 0.5].forEach((d) => { const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = 880; o.connect(g); g.connect(ctx.destination);
+      g.gain.setValueAtTime(0.0001, ctx.currentTime + d); g.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + d + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + d + 0.2);
+      o.start(ctx.currentTime + d); o.stop(ctx.currentTime + d + 0.22); });
+  } catch { /* sem som */ }
+  navigator.vibrate?.([200, 100, 200]);
+}
+function pomoCard(cfg, P, pre) {
+  const p = POMO(cfg); const t = state[cfg.key].timer;
+  const active = !!p.endsAt; const paused = p.left != null; const fresh = !active && !paused;
+  const btns = fresh ? `<button class="btn white grow big" data-act="${P}PomoStart">▶︎ Começar foco de ${focusMin('foco')} min</button>`
+    : `${active ? `<button class="btn glass grow" data-act="${P}PomoPause">⏸ Pausar</button>` : `<button class="btn glass grow" data-act="${P}PomoResume">▶︎ Continuar</button>`}
+       ${p.phase === 'pausa' ? `<button class="btn glass grow" data-act="${P}PomoSkip">⏭ Pular pausa</button>` : ''}
+       <button class="btn white grow" data-act="${P}Finish">⏹ Finalizar</button>`;
+  return `<section class="card timer-card pomo bg-grad-${p.phase === 'pausa' ? 'sky' : cfg.grad} ${active ? 'running' : ''}">
+    <small>${p.phase === 'pausa' ? `☕ Pausa · ${focusMin('pausa')} min` : `🎯 Foco · ciclo ${p.cycles + 1}`}${paused ? ' (pausado)' : ''}</small>
+    <div class="timer" data-pomo="${cfg.key}">${fmtTimer(pomoRemaining(p))}</div>
+    <small>Tempo focado: <b data-track-timer="${cfg.key}">${fmtTimer(t.acc + (t.running && t.startedAt ? (Date.now() - t.startedAt) / 1000 : 0))}</b> · ${p.cycles} ciclo(s) completo(s)</small>
+    ${pre ? `<small class="st-pre">Retomando: <b>${esc(pre.materia)}${pre.assunto ? ' · ' + esc(pre.assunto) : ''}</b></small>` : ''}
+    <div class="row gap mt">${btns}</div>
+    <div class="pomo-set"><label>Foco <select data-change="focusSet" data-k="foco">${[15, 20, 25, 30, 40, 45, 50, 60].map((m) => `<option value="${m}" ${m === focusMin('foco') ? 'selected' : ''}>${m} min</option>`).join('')}</select></label>
+      <label>Pausa <select data-change="focusSet" data-k="pausa">${[3, 5, 10, 15, 20].map((m) => `<option value="${m}" ${m === focusMin('pausa') ? 'selected' : ''}>${m} min</option>`).join('')}</select></label></div>
+  </section>`;
+}
+C.focusSet = (el) => { (state.focus ||= {})[el.dataset.k] = Number(el.value); save(); toast(`${el.dataset.k === 'foco' ? 'Foco' : 'Pausa'}: ${el.value} min`); rerender(); };
+
+/** chamado a cada segundo: troca foco ↔ pausa na hora certa (mesmo se o app ficou em segundo plano) */
+export function tickPomodoros() {
+  const now = Date.now();
+  for (const cfg of Object.values(TRACKS)) {
+    const p = state[cfg.key]?.pomo; if (!p?.on) continue;
+    document.querySelectorAll(`[data-pomo="${cfg.key}"]`).forEach((el) => { el.textContent = fmtTimer(pomoRemaining(p)); });
+    if (!p.endsAt || now < p.endsAt) continue;
+    const t = state[cfg.key].timer; let msg = '';
+    while (p.endsAt && p.endsAt <= now) {
+      if (p.phase === 'foco') {
+        if (t.running && t.startedAt) { t.acc += Math.max(0, (p.endsAt - t.startedAt) / 1000); t.running = false; t.startedAt = null; }
+        p.cycles++; p.phase = 'pausa'; p.endsAt += focusMin('pausa') * 60000; msg = `Foco concluído! 🎉 Pausa de ${focusMin('pausa')} min`;
+      } else {
+        t.running = true; t.startedAt = p.endsAt; p.phase = 'foco'; p.endsAt += focusMin('foco') * 60000; msg = `Fim da pausa — bora ${cfg.verb}! 🎯`;
+      }
+    }
+    save(); beep(); toast(msg); rerender();
+  }
+}
+
 const elapsedOf = (cfg) => { const t = state[cfg.key].timer; return t.acc + (t.running && t.startedAt ? (Date.now() - t.startedAt) / 1000 : 0); };
 const dayOf = (cfg, k) => state[cfg.key].sessions.filter((x) => x.date === k).reduce((a, x) => a + (x.seconds || 0), 0);
 export const studyElapsed = () => elapsedOf(TRACKS.estudo);
@@ -92,13 +145,15 @@ function makeTrack(cfg) {
       : el > 0
         ? `<button class="btn glass grow" data-act="${P}Start">▶︎ Continuar</button><button class="btn white grow" data-act="${P}Finish">⏹ Finalizar</button><button class="btn glass" data-act="${P}Reset" aria-label="Zerar">↺</button>`
         : `<button class="btn white grow big" data-act="${P}Start">▶︎ Começar a ${cfg.verb}</button>`;
+    const pomo = POMO(cfg);
     return `<header class="page-head top"><h1>${cfg.title}</h1><div class="ph-right"><button class="link" data-act="${P}New">+ Registrar</button></div></header>
-    <section class="card timer-card bg-grad-${cfg.grad} ${t.running ? 'running' : ''}">
+    <div class="seg mode-seg">${[['crono', '⏱️ Cronômetro'], ['pomo', '⏰ Pomodoro']].map(([k, l]) => `<button class="${(pomo.on ? 'pomo' : 'crono') === k ? 'on' : ''}" data-act="${P}Mode" data-m="${k}">${l}</button>`).join('')}</div>
+    ${pomo.on ? pomoCard(cfg, P, pre) : `<section class="card timer-card bg-grad-${cfg.grad} ${t.running ? 'running' : ''}">
       <small>${t.running ? cfg.doing : el > 0 ? 'Pausado' : `Cronômetro ${cfg.unit}`}</small>
       <div class="timer" data-track-timer="${cfg.key}">${fmtTimer(el)}</div>
       ${pre ? `<small class="st-pre">Retomando: <b>${esc(pre.materia)}${pre.assunto ? ' · ' + esc(pre.assunto) : ''}</b></small>` : ''}
       <div class="row gap mt">${btns}</div>
-    </section>
+    </section>`}
     <div class="stats two">
       <div class="stat"><span>⏱️</span><b>${fmtMinutes(dayOf(cfg, k) / 60)}</b><small>hoje</small></div>
       <div class="stat"><span>${cfg.icon}</span><b>${new Set(S().sessions.map((x) => x.date)).size}</b><small>dias praticados</small></div>
@@ -173,7 +228,13 @@ function makeTrack(cfg) {
   A[P + 'Start'] = () => { const t = T(); if (t.running) return; t.running = true; t.startedAt = Date.now(); save(); rerender(); };
   A[P + 'Pause'] = () => { const t = T(); if (!t.running) return; t.acc = elapsed(); t.running = false; t.startedAt = null; save(); rerender(); };
   A[P + 'Reset'] = () => confirmSheet('Zerar cronômetro?', 'O tempo atual será descartado.', 'Zerar', () => { Object.assign(T(), { running: false, startedAt: null, acc: 0 }); ui[P + 'Prefill'] = null; save(); });
-  A[P + 'Finish'] = () => { A[P + 'Pause'](); entrySheet(undefined, { seconds: elapsed(), fromTimer: true, prefill: ui[P + 'Prefill'] }); };
+  A[P + 'Finish'] = () => { A[P + 'Pause'](); pomoStop(cfg); entrySheet(undefined, { seconds: elapsed(), fromTimer: true, prefill: ui[P + 'Prefill'] }); };
+  // pomodoro
+  A[P + 'Mode'] = (el) => { const p = POMO(cfg); const on = el.dataset.m === 'pomo'; if (p.on === on) return; if (!on) pomoStop(cfg); p.on = on; save(); rerender(); };
+  A[P + 'PomoStart'] = () => { const p = POMO(cfg); p.phase = 'foco'; p.endsAt = Date.now() + focusMin('foco') * 60000; p.left = null; A[P + 'Start'](); };
+  A[P + 'PomoPause'] = () => { const p = POMO(cfg); if (!p.endsAt) return; p.left = p.endsAt - Date.now(); p.endsAt = null; if (p.phase === 'foco') A[P + 'Pause'](); else { save(); rerender(); } };
+  A[P + 'PomoResume'] = () => { const p = POMO(cfg); if (p.left == null) return; p.endsAt = Date.now() + p.left; p.left = null; if (p.phase === 'foco') A[P + 'Start'](); else { save(); rerender(); } };
+  A[P + 'PomoSkip'] = () => { const p = POMO(cfg); p.phase = 'foco'; p.endsAt = Date.now() + focusMin('foco') * 60000; p.left = null; A[P + 'Start'](); };
   A[P + 'New'] = () => entrySheet(undefined, { prefill: ui[P + 'Prefill'] });
   A[P + 'Edit'] = (el) => entrySheet(S().sessions.find((x) => x.id === el.dataset.id));
   A[P + 'Resume'] = (el) => {

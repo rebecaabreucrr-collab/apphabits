@@ -156,6 +156,11 @@ export function defaultState() {
 
     finance: defaultFinance(),
 
+    goals: [],
+    reviews: {},
+    sleep: { goalHours: 8, bedtime: '21:00', wake: '05:00', log: {} },
+    focus: { foco: 25, pausa: 5 },
+
     study: { sessions: [], timer: { running: false, startedAt: null, acc: 0 } },
     english: { sessions: [], timer: { running: false, startedAt: null, acc: 0 } },
 
@@ -163,7 +168,7 @@ export function defaultState() {
       layout: 'rosa', // rosa | lavanda | ceu | minimal
       theme: 'auto', // auto | light | dark
       tabs: [{ id: 'desafio', label: 'Desafio' }, { id: 'leitura', label: 'Leitura' }, { id: 'cuidados', label: 'Cuidados' }],
-      dash: [{ id: 'frase', on: true }, { id: 'resumo', on: true }, { id: 'semana', on: true }, { id: 'agua', on: true }, { id: 'cards', on: true },
+      dash: [{ id: 'frase', on: true }, { id: 'semanal', on: true }, { id: 'resumo', on: true }, { id: 'semana', on: true }, { id: 'agua', on: true }, { id: 'cards', on: true },
         { id: 'rotina', on: true }, { id: 'desafio', on: true }],
       home: defaultHome(),
     },
@@ -203,6 +208,8 @@ export const TAB_DEFS = {
   estudo: { label: 'Estudo', icon: 'books' },
   ingles: { label: 'Inglês', icon: 'chat' },
   financas: { label: 'Finanças', icon: 'wallet' },
+  metas: { label: 'Metas', icon: 'target' },
+  sono: { label: 'Sono', icon: 'moon' },
   relatorio: { label: 'Relatório', icon: 'pie' },
   treinos: { label: 'Treinos', icon: 'dumbbell' },
   rotina: { label: 'Rotina', icon: 'calendar' },
@@ -215,14 +222,14 @@ export const LAYOUTS = {
   minimal: { name: 'Minimalista', desc: 'Claro, com detalhes rosa' },
 };
 export const CARD_NAMES = {
-  desafio: 'Desafio', treino: 'Treino', remedios: 'Remédios', estudo: 'Estudo', ingles: 'Inglês', financas: 'Finanças', cabelo: 'Cabelo', leitura: 'Leitura', skincare: 'Skincare',
+  desafio: 'Desafio', metas: 'Metas', sono: 'Sono', treino: 'Treino', remedios: 'Remédios', estudo: 'Estudo', ingles: 'Inglês', financas: 'Finanças', cabelo: 'Cabelo', leitura: 'Leitura', skincare: 'Skincare',
   agua: 'Água', ciclo: 'Meu ciclo',
 };
 export const SQUARE_NAMES = { nenhum: 'Nenhum', ciclo: 'Meu ciclo', agua: 'Água', desafio: 'Desafio', leitura: 'Leitura', estudo: 'Estudo', ingles: 'Inglês', remedios: 'Remédios' };
 export function defaultHome() {
   return {
     square2: 'ciclo',
-    cards: ['desafio', 'treino', 'remedios', 'estudo', 'ingles', 'financas', 'cabelo', 'leitura', 'skincare', 'agua', 'ciclo']
+    cards: ['metas', 'sono', 'desafio', 'treino', 'remedios', 'estudo', 'ingles', 'financas', 'cabelo', 'leitura', 'skincare', 'agua', 'ciclo']
       .map((id) => ({ id, on: !['agua', 'ciclo'].includes(id) })),
     cardsLayout: 'grid',
     groupRoutine: true,
@@ -348,6 +355,7 @@ export const PHRASES = [
 ];
 export const DASH_NAMES = {
   frase: 'Frase do dia',
+  semanal: 'Prioridades e revisão da semana',
   resumo: 'Hábitos + quadrado da direita', semana: 'Semana', agua: 'Água', cards: 'Cards de resumo',
   rotina: 'Rotina do dia', desafio: 'Metas do desafio',
 };

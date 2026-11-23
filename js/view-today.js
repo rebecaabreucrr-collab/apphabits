@@ -8,6 +8,8 @@ import { tasksFor, isDone, toggleDone, dayProgress, findTask, hairDay, workoutFo
 import { cycleWheel } from './view-cycle.js';
 import { studyDay, englishDay, lastSession, TRACKS } from './view-study.js';
 import { monthSummary, thisMonth, money } from './finance.js';
+import { weeklyBlock, goalsTile } from './view-goals.js';
+import { sleepTile } from './view-sleep.js';
 import { MASKS, PHRASES } from './defaults.js';
 import { taskSheet, avatarHtml } from './forms.js';
 import { bar } from './ui.js';
@@ -225,6 +227,8 @@ function tileMap(k) {
   const en = englishDay(k); const lastEn = lastSession(TRACKS.ingles);
   T.ingles = `<a class="tile t-violet" href="#/ingles"><span class="tile-ico">💬</span><div><b>${fmtMinutes(en / 60)} de inglês</b>
     <small>${lastEn ? esc(lastEn.materia) : 'Inglês de hoje'}</small></div></a>`;
+  T.metas = goalsTile();
+  T.sono = sleepTile();
   { const fm = monthSummary(thisMonth()); const tl = Number(state.finance.totalLimit) || 0;
     const next = state.finance.entries.filter((e) => e.status === 'pendente' && e.kind === 'despesa').sort((a, b) => (a.due || '').localeCompare(b.due || ''))[0];
     T.financas = `<a class="tile t-violet" href="#/financas"><span class="tile-ico">👛</span><div><b>${money(fm.saldo)}</b>
@@ -353,6 +357,7 @@ export function renderToday() {
   }).join('');
   const blocks = {
     frase: phraseCard(k),
+    semanal: k === dateKey() ? weeklyBlock() : '',
     resumo: state.settings.home.square2 === 'nenhum'
       ? `<div class="squares solo">${habitsSquare(k, tasks, true)}</div>`
       : `<div class="squares">${habitsSquare(k, tasks)}${sideSquare(k)}</div>`,

@@ -2,6 +2,7 @@
 import { state } from './store.js';
 import { esc, dateKey, addDays, weekStart, parseKey, MONTHS, WD, fmtMinutes, fmtShort, diffDays } from './utils.js';
 import { A, ui, rerender, ring, bar, toast } from './ui.js';
+import { sleepRange } from './view-sleep.js';
 import { tasksFor, isDone, waterTotal, medPerDay, medTaken, activeChallenge, challengeDay, dayScore, workoutFor } from './logic.js';
 
 const PERIODS = { semana: 'Semana', mes: 'Mês', ano: 'Ano' };
@@ -157,6 +158,7 @@ function renderReport() {
     ${habit('📚', 'Estudo', fmtMinutes(h.study / 60), `média ${fmtMinutes(h.study / 60 / (r.n || 1))} por dia`, null)}
     ${habit('💬', 'Inglês', fmtMinutes(h.english / 60), `média ${fmtMinutes(h.english / 60 / (r.n || 1))} por dia`, null)}
     ${habit('📖', 'Leitura', fmtMinutes(h.readSec / 60), `${h.pages} páginas${h.booksDone ? ` · ${h.booksDone} livro(s) concluído(s)` : ''}`, null)}
+    ${(() => { const sl = sleepRange(r.start, r.end); return sl.n ? habit('🌙', 'Sono', fmtMinutes(sl.avg * 60), `média por noite · ${sl.ok} de ${sl.n} noites na meta`, sl.ok / sl.n) : ''; })()}
     ${habit('💇‍♀️', 'Cabelo', String(h.hairLogs), 'lavagens registradas', null)}
     ${h.chal ? habit('🎯', 'Desafio', `${Math.round(h.chal.avg * 100)}%`, `${esc(h.chal.name)} · média em ${h.chal.days} dia(s)`, h.chal.avg) : ''}
   </section>

@@ -44,7 +44,7 @@ function renderChallenge() {
   const d = challengeDay(c, today);
   const notStarted = d < 1;
   const status = st.finished ? 'Concluído 🎉' : notStarted ? `Começa ${fmtShort(c.startDate)}` : `Dia ${d} de ${c.days}`;
-  return `<header class="page-head top"><h1>Desafio</h1><div class="ph-right"><button class="link" data-act="chalEdit">Editar</button></div></header>
+  return `<header class="page-head"><a class="back" href="#/metas" aria-label="Voltar">‹</a><h1>Desafio</h1><div class="ph-right"><button class="link" data-act="chalEdit">Editar</button></div></header>
   <section class="card hero-chal-card bg-grad-violet">
     <div class="grow"><small>${fmtShort(c.startDate)} – ${fmtShort(challengeEnd(c))}</small><h2>${esc(c.name)}</h2><span class="pill glass">${status}</span></div>
     ${ring(st.finished ? st.overall : (notStarted ? 0 : (d - 1 + dayScore(c, today)) / c.days), { size: 96, stroke: 10, label: `${Math.round((st.finished ? st.overall : st.elapsed / c.days) * 100)}%`, sub: st.finished ? 'aproveit.' : 'do tempo', cls: 'light' })}
@@ -147,4 +147,4 @@ A.chalReactivate = (el) => {
 };
 A.chalDelHist = (el) => { state.challenges = state.challenges.filter((x) => x.id !== el.dataset.id); save(); closeSheet(); rerender(); };
 
-export const routes = { desafio: { render: renderChallenge, tab: 'desafio' } };
+export const routes = { desafio: { render: renderChallenge, tab: 'metas' } };

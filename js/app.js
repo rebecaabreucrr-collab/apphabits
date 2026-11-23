@@ -6,7 +6,10 @@ import { TAB_DEFS } from './defaults.js';
 import { routes as meds } from './view-meds.js';
 import { routes as report } from './view-report.js';
 import { routes as finance } from './view-finance.js';
-import { routes as study, studyElapsed, englishElapsed } from './view-study.js';
+import { routes as goals } from './view-goals.js';
+import { routes as sleep } from './view-sleep.js';
+import { startSync, onSync } from './sync.js';
+import { routes as study, studyElapsed, englishElapsed, tickPomodoros } from './view-study.js';
 import { A, C, ui, setRender, closeSheet, toast } from './ui.js';
 import { timerElapsed } from './logic.js';
 import { routes as today } from './view-today.js';
@@ -40,7 +43,7 @@ export async function logout() {
 if (redirect?.error) setTimeout(() => { ui.authMsg = { text: redirect.error }; render(); }, 0);
 if (redirect?.type === 'signup' || redirect?.type === 'magiclink') setTimeout(() => toast('E-mail confirmado! 💜'), 400);
 if (authEnabled() && isLoggedIn()) ensureFresh().catch(() => { if (!isLoggedIn()) render(); });
-const routes = { ...today, ...care, ...reading, ...challenge, ...more, ...cycle, ...meds, ...study, ...report, ...finance };
+const routes = { ...today, ...care, ...reading, ...challenge, ...more, ...cycle, ...meds, ...study, ...report, ...finance, ...goals, ...sleep };
 
 function tabIds() { return ['hoje', ...state.settings.tabs.map((t) => t.id), 'mais']; }
 function renderTabs() {
@@ -121,6 +124,7 @@ document.addEventListener('change', (e) => {
 setInterval(() => {
   const els = document.querySelectorAll('[data-timer]');
   if (els.length && state.reading.timer.running) els.forEach((el) => { el.textContent = fmtTimer(timerElapsed()); });
+  tickPomodoros();
   document.querySelectorAll('[data-track-timer]').forEach((el) => {
     const key = el.dataset.trackTimer;
     if (state[key]?.timer.running) el.textContent = fmtTimer(key === 'study' ? studyElapsed() : englishElapsed());
@@ -141,8 +145,14 @@ setInterval(checkDay, 60000);
 
 render();
 
+// sincronização pelo WordPress (quando o app é aberto pelo plugin)
+onSync((ev) => { if (ev === 'pulled' && !document.querySelector('#sheet-root.open')) render(); if (ev === 'pulled') toast('Atualizado com o outro aparelho 🔄'); });
+startSync();
+
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-  navigator.serviceWorker.register(new URL('../sw.js', import.meta.url), { updateViaCache: 'none' }).then((reg) => {
+  const W = window.MR_WP;
+  const swUrl = W?.sw || new URL('../sw.js', import.meta.url);
+  navigator.serviceWorker.register(swUrl, { updateViaCache: 'none', ...(W?.scope ? { scope: W.scope } : {}) }).then((reg) => {
     reg.update();
     document.addEventListener('visibilitychange', () => { if (!document.hidden) reg.update(); });
   }).catch((e) => console.warn('SW', e));

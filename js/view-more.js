@@ -7,6 +7,7 @@ import { COLORS, TASK_TYPES, LAYOUTS, TAB_DEFS, DASH_NAMES, CARD_NAMES, SQUARE_N
 import { svg } from './icons.js';
 import { authEnabled, isLoggedIn, currentUser, changePassword } from './auth.js';
 import { APP_VERSION } from './config.js';
+import { syncInfo, syncNow } from './sync.js';
 import { toMin } from './utils.js';
 
 const item = (href, icon, title, sub, color = 'rose') => `<a class="menu-item" href="${href}"><span class="t-icon bg-soft-${color}">${icon}</span>
@@ -28,6 +29,7 @@ function renderMore() {
     <div class="menu-item"><span class="t-icon bg-soft-violet">👤</span><div class="grow"><b>Minha conta</b><small>${esc(currentUser()?.email || '')}</small></div></div>
     <div class="row gap"><button class="btn ghost grow" data-act="pwChange">Trocar senha</button><button class="btn danger-ghost grow" data-act="logoutAsk">Sair</button></div>
   </section>` : ''}
+  ${syncCard()}
   <h3 class="sec-title">Personalizar</h3>
   <section class="card menu">
     ${item('#/aparencia', '🎨', 'Layout e cores', `${L.name} · ${{ auto: 'tema automático', light: 'tema claro', dark: 'tema escuro' }[state.settings.theme]}`, 'violet')}
@@ -38,6 +40,9 @@ function renderMore() {
   </section>
   <h3 class="sec-title">Organizar</h3>
   <section class="card menu">
+    ${item('#/metas', '🎯', 'Metas e desafio', 'Objetivos do mês e do ano, desafio de 20 dias', 'violet')}
+    ${item('#/revisao', '📝', 'Revisão da semana', 'O que deu certo, o que travou e as prioridades', 'pink')}
+    ${item('#/sono', '🌙', 'Sono', 'Horários, qualidade e meta de horas', 'sky')}
     ${item('#/financas', '👛', 'Finanças', 'Receitas, despesas, contas, limites e IA', 'violet')}
     ${item('#/relatorio', '📊', 'Relatório', 'Quão produtiva fui na semana, no mês e no ano', 'pink')}
     ${item('#/ciclo', '🌸', 'Meu ciclo', 'Menstruação, período fértil e ovulação', 'pink')}
@@ -86,6 +91,16 @@ A.forceUpdate = async () => {
   const q = new URLSearchParams(location.search); q.set('v', Date.now());
   setTimeout(() => location.replace(location.pathname + '?' + q.toString() + '#/mais'), 600);
 };
+function syncCard() {
+  const si = syncInfo();
+  if (!si.enabled) return `<section class="card sync-card"><div class="menu-item"><span class="t-icon bg-soft-sky">🔄</span><div class="grow"><b>Sincronizar celular e PC</b>
+    <small>Abra o app pelo seu WordPress (seusite.com/minha-rotina/) e instale de lá no iPhone. Assim tudo fica igual nos dois aparelhos.</small></div></div></section>`;
+  const t = si.last ? new Date(si.last).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+  return `<section class="card sync-card"><div class="menu-item"><span class="t-icon bg-soft-sky">🔄</span><div class="grow"><b>Sincronização ${si.error ? 'com erro' : 'ativa'}</b>
+    <small>${si.error ? esc(si.error) : t ? `Tudo salvo no WordPress · última às ${t}` : 'Conectando…'}</small></div>
+    <button class="btn small ghost" data-act="syncNow">Sincronizar</button></div></section>`;
+}
+A.syncNow = async () => { toast('Sincronizando…'); await syncNow(); rerender(); const si = syncInfo(); toast(si.error ? si.error : 'Sincronizado ✓'); };
 C.waterGoal = (el) => { state.water.goal = Number(el.value); save(); toast('Meta de água atualizada'); rerender(); };
 
 /* ---------- Aparência ---------- */
@@ -103,7 +118,7 @@ A.setLayout = (el) => { state.settings.layout = el.dataset.l; save(); rerender()
 A.setTheme = (el) => { state.settings.theme = el.dataset.t; save(); rerender(); };
 
 /* ---------- Abas ---------- */
-const OPTIONAL_TABS = ['desafio', 'estudo', 'ingles', 'financas', 'relatorio', 'leitura', 'cuidados', 'ciclo', 'remedios', 'treinos', 'rotina'];
+const OPTIONAL_TABS = ['metas', 'desafio', 'estudo', 'ingles', 'financas', 'relatorio', 'sono', 'leitura', 'cuidados', 'ciclo', 'remedios', 'treinos', 'rotina'];
 function renderTabs() {
   const on = state.settings.tabs;
   const off = OPTIONAL_TABS.filter((id) => !on.some((t) => t.id === id));

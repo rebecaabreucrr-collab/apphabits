@@ -42,6 +42,15 @@ function migrate(s) {
   const est = s.routine.find((r) => r.id === 'r-estudo');
   if (est && est.type === 'normal' && !s.profile.studyMigrated) est.type = 'estudo';
   s.profile.studyMigrated = true;
+  // Metas (com o desafio dentro): troca a aba Desafio por Metas, uma vez
+  if (!s.profile.metasTab) {
+    s.profile.metasTab = true;
+    const tabs = s.settings.tabs || [];
+    const i = tabs.findIndex((t) => t.id === 'desafio');
+    if (i >= 0) tabs[i] = { id: 'metas', label: 'Metas' };
+    else if (tabs.length < 5 && !tabs.some((t) => t.id === 'metas')) tabs.push({ id: 'metas', label: 'Metas' });
+  }
+  if (!s.settings.dash.some((x) => x.id === 'semanal')) s.settings.dash.splice(1, 0, { id: 'semanal', on: true });
   for (const d of ['resumo', 'semana', 'agua', 'cards', 'rotina', 'desafio', 'frase']) {
     if (!s.settings.dash.some((x) => x.id === d)) s.settings.dash[d === 'frase' ? 'unshift' : 'push']({ id: d, on: true });
   }
@@ -89,10 +98,19 @@ function fill(target, defs) {
 function write() {
   try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { console.error(e); alert('Não foi possível salvar os dados.'); }
 }
-export function save() { write(); }
+/** avisos para a sincronização (preenchido por sync.js) */
+export const hooks = { afterSave: null };
 
-export function replaceState(obj) {
-  state = obj; fill(state, defaultState()); migrate(state); save();
+export function save() {
+  (state.meta ||= {}).updatedAt = Date.now();
+  write();
+  hooks.afterSave?.();
+}
+
+/** fromSync: dados vindos de outro aparelho — mantém a data deles e não reenvia */
+export function replaceState(obj, { fromSync = false } = {}) {
+  state = obj; fill(state, defaultState()); migrate(state);
+  if (fromSync) write(); else save();
 }
 
 export function resetState() {

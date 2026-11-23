@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Minha Rotina
  * Description:       App de rotina, hábitos e autocuidado dentro do WordPress. Abra em /minha-rotina/ (somente usuárias logadas).
- * Version:           1.1.0
+ * Version: 1.3.0
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            Rebeca
@@ -12,26 +12,19 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'MR_VERSION', '1.1.0' );
+define( 'MR_VERSION', '1.3.0' );
 define( 'MR_DIR', plugin_dir_path( __FILE__ ) );
 define( 'MR_URL', plugin_dir_url( __FILE__ ) );
 define( 'MR_OPT_DATA', 'minha_rotina_backup' );
 define( 'MR_OPT_STAMP', 'minha_rotina_backup_stamp' );
 define( 'MR_OPT_ACCESS', 'minha_rotina_acesso' ); // 'admin' (padrão) ou 'logado'
-define( 'MR_OPT_AI_KEY', 'minha_rotina_ia_chave' );
-define( 'MR_OPT_AI_MODEL', 'minha_rotina_ia_modelo' );
-
-if ( PHP_VERSION_ID >= 80100 ) {
-	require_once MR_DIR . 'includes/ia-financas.php';
-} else {
-	// hospedagem com PHP antigo: o app funciona, só a IA fica desligada
-	function mr_ai_ready() {
-		return false;
+// a IA paga foi removida: apaga a chave antiga, se tiver ficado guardada
+add_action( 'admin_init', function () {
+	if ( get_option( 'minha_rotina_ia_chave' ) !== false ) {
+		delete_option( 'minha_rotina_ia_chave' );
+		delete_option( 'minha_rotina_ia_modelo' );
 	}
-	function mr_ai_admin_section() {
-		echo '<h2>✨ Inteligência artificial (Finanças)</h2><div class="notice notice-warning inline"><p>A IA precisa de <strong>PHP 8.1 ou mais novo</strong>. Sua hospedagem está com PHP ' . esc_html( PHP_VERSION ) . '. Peça à hospedagem para atualizar; o resto do app funciona normalmente.</p></div>';
-	}
-}
+} );
 
 /* ------------------------------------------------------------------ */
 /* Endereço do app: /minha-rotina/ (ou ?minha_rotina_app=1 sem links permanentes) */
@@ -43,6 +36,8 @@ add_action( 'init', 'mr_add_rewrite' );
 
 add_filter( 'query_vars', function ( $vars ) {
 	$vars[] = 'minha_rotina_app';
+	$vars[] = 'minha_rotina_manifest';
+	$vars[] = 'minha_rotina_sw';
 	return $vars;
 } );
 
@@ -92,11 +87,110 @@ function mr_can_access() {
 /* Página do app                                                       */
 /* ------------------------------------------------------------------ */
 add_action( 'template_redirect', function () {
+	if ( get_query_var( 'minha_rotina_manifest' ) ) {
+		mr_render_manifest();
+		exit;
+	}
+	if ( get_query_var( 'minha_rotina_sw' ) ) {
+		mr_render_sw();
+		exit;
+	}
 	if ( get_query_var( 'minha_rotina_app' ) ) {
 		mr_render_app();
 		exit;
 	}
 } );
+
+/* ------------------------------------------------------------------ */
+/* Instalar no celular a partir do WordPress: manifesto e modo offline */
+/* ------------------------------------------------------------------ */
+function mr_app_path() {
+	$p = wp_parse_url( mr_app_url(), PHP_URL_PATH );
+	return $p ? $p : '/';
+}
+function mr_render_manifest() {
+	$icons = MR_URL . 'app/icons/';
+	header( 'Content-Type: application/manifest+json; charset=utf-8' );
+	echo wp_json_encode( array(
+		'name'             => 'Minha Rotina',
+		'short_name'       => 'Rotina',
+		'lang'             => 'pt-BR',
+		'start_url'        => mr_app_url() . '#/hoje',
+		'scope'            => mr_app_path(),
+		'display'          => 'standalone',
+		'orientation'      => 'portrait',
+		'background_color' => '#fff7f8',
+		'theme_color'      => '#f43f5e',
+		'icons'            => array(
+			array( 'src' => $icons . 'icon-192.png', 'sizes' => '192x192', 'type' => 'image/png' ),
+			array( 'src' => $icons . 'icon-512.png', 'sizes' => '512x512', 'type' => 'image/png' ),
+			array( 'src' => $icons . 'icon-512-maskable.png', 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'maskable' ),
+		),
+	), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+}
+/** modo offline: só cuida da página do app e dos arquivos do plugin; o resto do site passa direto */
+function mr_render_sw() {
+	header( 'Content-Type: application/javascript; charset=utf-8' );
+	header( 'Cache-Control: no-cache' );
+	$base = wp_json_encode( MR_URL . 'app/' );
+	$page = wp_json_encode( mr_app_path() );
+	$ver  = wp_json_encode( 'mr-wp-' . MR_VERSION );
+	echo <<<JS
+const CACHE = {$ver}; const BASE = {$base}; const PAGE = {$page};
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (e) => e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k.startsWith('mr-wp-') && k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim())));
+self.addEventListener('fetch', (e) => {
+  const req = e.request; if (req.method !== 'GET') return;
+  const u = new URL(req.url);
+  const isPage = u.origin === location.origin && u.pathname === PAGE && (PAGE !== '/' || u.searchParams.has('minha_rotina_app'));
+  if (!isPage && !req.url.startsWith(BASE)) return;
+  e.respondWith(caches.open(CACHE).then(async (c) => {
+    try { const r = await fetch(req, { cache: 'no-cache' }); if (r.ok) c.put(isPage ? PAGE : req, r.clone()); return r; }
+    catch { return (await c.match(isPage ? PAGE : req, { ignoreSearch: !isPage })) || Response.error(); }
+  }));
+});
+JS;
+}
+
+/* ------------------------------------------------------------------ */
+/* Sincronização: os dados de cada usuária ficam no perfil dela        */
+/* ------------------------------------------------------------------ */
+add_action( 'rest_api_init', function () {
+	register_rest_route( 'minha-rotina/v1', '/dados', array(
+		array( 'methods' => 'GET', 'callback' => 'mr_sync_get', 'permission_callback' => 'mr_can_access' ),
+		array( 'methods' => 'POST', 'callback' => 'mr_sync_post', 'permission_callback' => 'mr_can_access' ),
+	) );
+} );
+function mr_sync_get() {
+	$uid  = get_current_user_id();
+	$json = get_user_meta( $uid, 'minha_rotina_dados', true );
+	return new WP_REST_Response( array(
+		'data'      => $json ? json_decode( $json, true ) : null,
+		'updatedAt' => (int) get_user_meta( $uid, 'minha_rotina_dados_em', true ),
+	), 200 );
+}
+function mr_sync_post( WP_REST_Request $req ) {
+	$uid  = get_current_user_id();
+	$p    = $req->get_json_params();
+	$data = $p['data'] ?? null;
+	$at   = (int) ( $p['updatedAt'] ?? 0 );
+	if ( ! is_array( $data ) || ! isset( $data['routine'] ) ) {
+		return new WP_REST_Response( array( 'message' => 'Dados inválidos.' ), 400 );
+	}
+	$json = wp_json_encode( $data, JSON_UNESCAPED_UNICODE );
+	if ( strlen( $json ) > 8 * 1024 * 1024 ) {
+		return new WP_REST_Response( array( 'message' => 'Dados grandes demais (máx. 8 MB).' ), 413 );
+	}
+	$cur = (int) get_user_meta( $uid, 'minha_rotina_dados_em', true );
+	if ( $cur && $at && $at + 500 < $cur ) {
+		// outro aparelho salvou algo mais novo: devolve para o app atualizar
+		$saved = get_user_meta( $uid, 'minha_rotina_dados', true );
+		return new WP_REST_Response( array( 'message' => 'Há dados mais novos.', 'data' => json_decode( $saved, true ), 'updatedAt' => $cur ), 409 );
+	}
+	update_user_meta( $uid, 'minha_rotina_dados', wp_slash( $json ) );
+	update_user_meta( $uid, 'minha_rotina_dados_em', $at ? $at : (int) round( microtime( true ) * 1000 ) );
+	return new WP_REST_Response( array( 'ok' => true, 'updatedAt' => $at ), 200 );
+}
 
 function mr_render_app() {
 	if ( ! is_user_logged_in() ) {
@@ -110,9 +204,10 @@ function mr_render_app() {
 	$app  = MR_URL . 'app/';
 
 	// caminhos dos arquivos do app apontam para a pasta do plugin
-	$html = str_replace(
+	$manifest = add_query_arg( 'minha_rotina_manifest', '1', home_url( '/' ) );
+	$html     = str_replace(
 		array( 'href="manifest.webmanifest"', 'href="icons/', 'href="css/', 'src="js/' ),
-		array( 'href="' . esc_url( $app . 'manifest.webmanifest' ) . '"', 'href="' . esc_url( $app . 'icons/' ), 'href="' . esc_url( $app . 'css/' ), 'src="' . esc_url( $app . 'js/' ) ),
+		array( 'href="' . esc_url( $manifest ) . '"', 'href="' . esc_url( $app . 'icons/' ), 'href="' . esc_url( $app . 'css/' ), 'src="' . esc_url( $app . 'js/' ) ),
 		$html
 	);
 
@@ -130,11 +225,12 @@ function mr_render_app() {
 			. '}catch(e){console.warn("Minha Rotina: backup não carregado",e);}})();</script>';
 	}
 
-	// o app usa isto para falar com a IA das finanças (a chave nunca vai para o navegador)
+	// dados para o app falar com o WordPress (sincronização entre aparelhos e modo offline)
 	$head .= '<script>window.MR_WP=' . wp_json_encode( array(
 		'rest'  => esc_url_raw( rest_url( 'minha-rotina/v1/' ) ),
 		'nonce' => wp_create_nonce( 'wp_rest' ),
-		'ia'    => mr_ai_ready(),
+		'sw'    => esc_url_raw( add_query_arg( 'minha_rotina_sw', '1', home_url( '/' ) ) ),
+		'scope' => mr_app_path(),
 	) ) . ';</script>';
 
 	$html = preg_replace( '/<head>/', '<head>' . $head, $html, 1 );
@@ -186,9 +282,6 @@ function mr_admin_page() {
 		'removed' => array( 'success', 'Backup removido do WordPress.' ),
 		'invalid' => array( 'error', 'Arquivo inválido. Use o backup gerado em Mais → Backup → Salvar backup.' ),
 		'saved'   => array( 'success', 'Configuração salva.' ),
-		'ia_ok'   => array( 'success', 'IA configurada e funcionando! ✨' ),
-		'ia_salva'=> array( 'success', 'Configuração da IA salva.' ),
-		'ia_erro' => array( 'error', 'A IA não respondeu: ' . ( isset( $_GET['mr_err'] ) ? sanitize_text_field( wp_unslash( $_GET['mr_err'] ) ) : '' ) ), // phpcs:ignore
 	);
 	?>
 	<div class="wrap">
@@ -227,7 +320,10 @@ function mr_admin_page() {
 			</form>
 		<?php endif; ?>
 
-		<?php mr_ai_admin_section(); ?>
+		<h2>🔄 Sincronização entre aparelhos</h2>
+		<?php $em = (int) get_user_meta( get_current_user_id(), 'minha_rotina_dados_em', true ); ?>
+		<p><?php echo $em ? 'Seus dados estão guardados no WordPress (última atualização em ' . esc_html( wp_date( 'd/m/Y H:i', (int) ( $em / 1000 ) ) ) . ').' : 'Ainda não há dados sincronizados. Eles aparecem aqui assim que você abrir o app.'; ?></p>
+		<p class="description">Use o app sempre pelo endereço acima (no PC e no celular). No iPhone: abra o endereço no Safari, entre com seu usuário do WordPress e toque em Compartilhar → Adicionar à Tela de Início. O que você fizer num aparelho aparece no outro.</p>
 
 		<h2>Quem pode abrir</h2>
 		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">

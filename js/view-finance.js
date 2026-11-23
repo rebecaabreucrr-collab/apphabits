@@ -5,88 +5,51 @@ import { A, C, ui, sheet, rerender, toast, empty, opt, bar, confirmSheet, closeS
 import { F, money, parseMoney, cat, cats, entryMonth, isLate, ensureBills, monthSummary, monthLabel, shiftMonth, thisMonth, addEntries, ym } from './finance.js';
 import { COLORS } from './defaults.js';
 import { emojiGrid } from './forms.js';
-import { iconize } from './icons.js';
 
 const TABS = { resumo: 'Resumo', lanc: 'Lançamentos', contas: 'Contas', orc: 'Orçamento' };
-const wp = () => window.MR_WP || null;
 
-/* ---------------- IA ---------------- */
-function aiCard() {
-  const W = wp();
-  if (!W) return `<section class="card ai-card off"><div class="ai-head"><span class="t-icon">✨</span><div><b>Lançar com IA</b>
-    <small>A IA funciona na versão do app instalada pelo plugin do WordPress (com a chave configurada no painel). Aqui você pode lançar manualmente.</small></div></div></section>`;
-  if (!W.ia) return `<section class="card ai-card off"><div class="ai-head"><span class="t-icon">✨</span><div><b>Lançar com IA</b>
-    <small>Falta configurar a chave da IA no WordPress: painel → Minha Rotina → Inteligência artificial.</small></div></div></section>`;
-  const files = ui.aiFiles || [];
-  return `<section class="card ai-card"><div class="ai-head"><span class="t-icon">✨</span><div><b>Lançar com IA</b>
-    <small>Escreva do seu jeito, mande foto do cupom, nota ou boleto, ou um arquivo (PDF, extrato CSV/OFX). A IA monta os lançamentos e você confere antes de salvar.</small></div></div>
-    <textarea id="ai-text" rows="3" placeholder="Ex.: gastei 45,90 no mercado hoje; recebi 3.500 de salário dia 5; conta de luz de 182 vence dia 20">${esc(ui.aiText || '')}</textarea>
-    ${files.length ? `<div class="ai-files">${files.map((f, i) => `<span class="pchip">${f.kind === 'image' ? '📷' : '📎'} ${esc(f.name)}<button data-act="aiRm" data-i="${i}" aria-label="Remover">✕</button></span>`).join('')}</div>` : ''}
-    <div class="row gap wrap ai-actions">
-      <label class="btn small ghost">📷 Foto<input type="file" accept="image/*" multiple hidden data-change="aiFile"></label>
-      <label class="btn small ghost">📎 Arquivo<input type="file" accept="image/*,application/pdf,.pdf,.csv,.txt,.ofx,text/plain,text/csv" multiple hidden data-change="aiFile"></label>
-      <button class="btn small primary grow" data-act="aiSend" ${ui.aiBusy ? 'disabled' : ''}>${ui.aiBusy ? 'Lendo… ✨' : 'Enviar para a IA'}</button>
-    </div></section>`;
+/* ---------------- ler foto ou arquivo (grátis, no aparelho) ---------------- */
+function readerCard() {
+  const busy = ui.readBusy;
+  return `<section class="card ai-card"><div class="ai-head"><span class="t-icon">📷</span><div><b>Ler foto ou arquivo</b>
+    <small>Foto de cupom, nota, boleto ou comprovante de Pix; PDF; ou extrato do banco (CSV/OFX). O app lê aqui mesmo no aparelho, de graça, e você confere antes de salvar.</small></div></div>
+    ${busy ? `<div class="read-prog"><small>${esc(busy.msg)}</small>${bar(busy.v)}</div>` : `<div class="row gap wrap ai-actions">
+      <label class="btn small primary grow">📷 Foto<input type="file" accept="image/*" hidden data-change="readFile"></label>
+      <label class="btn small ghost grow">📎 Arquivo<input type="file" accept="application/pdf,.pdf,.csv,.ofx,.txt,text/plain,text/csv,image/*" hidden data-change="readFile"></label>
+    </div>`}</section>`;
 }
-function readAs(file, how) {
-  return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r[how](file); });
-}
-/** fotos ficam menores (até 1600px) para ir mais rápido */
-async function shrinkImage(file) {
-  const url = URL.createObjectURL(file);
+C.readFile = async (el) => {
+  const f = el.files?.[0]; el.value = '';
+  if (!f || ui.readBusy) return;
+  ui.readBusy = { msg: 'Abrindo…', v: 0.02 }; rerender();
+  let last = 0;
+  const progress = (msg, v) => {
+    ui.readBusy = { msg, v };
+    const now = Date.now(); if (now - last < 250) return; last = now;
+    const card = document.querySelector('.read-prog');
+    if (card) { card.querySelector('small').textContent = msg; card.querySelector('.bar span').style.width = `${Math.round(v * 100)}%`; }
+  };
   try {
-    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
-    const k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
-    const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
-    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-    return c.toDataURL('image/jpeg', 0.85).split(',')[1];
-  } finally { URL.revokeObjectURL(url); }
-}
-C.aiFile = async (el) => {
-  ui.aiText = document.getElementById('ai-text')?.value || ui.aiText;
-  const list = (ui.aiFiles ||= []);
-  for (const f of el.files || []) {
-    try {
-      if (f.type.startsWith('image/')) list.push({ name: f.name || 'foto.jpg', kind: 'image', media_type: 'image/jpeg', data: await shrinkImage(f) });
-      else if (f.type === 'application/pdf' || /\.pdf$/i.test(f.name)) {
-        if (f.size > 15 * 1024 * 1024) { toast('PDF muito grande (máx. 15 MB)'); continue; }
-        list.push({ name: f.name, kind: 'pdf', media_type: 'application/pdf', data: (await readAs(f, 'readAsDataURL')).split(',')[1] });
-      } else {
-        const text = await readAs(f, 'readAsText');
-        list.push({ name: f.name, kind: 'text', text: String(text).slice(0, 200000) });
-      }
-    } catch { toast(`Não consegui ler ${f.name}`); }
-  }
-  el.value = ''; rerender();
-};
-A.aiRm = (el) => { ui.aiText = document.getElementById('ai-text')?.value || ''; ui.aiFiles.splice(Number(el.dataset.i), 1); rerender(); };
-A.aiSend = async () => {
-  const W = wp(); if (!W?.ia || ui.aiBusy) return;
-  const text = document.getElementById('ai-text')?.value.trim() || '';
-  const files = ui.aiFiles || [];
-  if (!text && !files.length) return toast('Escreva algo ou anexe uma foto/arquivo');
-  ui.aiText = text; ui.aiBusy = true; rerender();
-  try {
-    const res = await fetch(W.rest + 'financas-ia', {
-      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': W.nonce },
-      body: JSON.stringify({ text, files, today: dateKey(), categories: F().categories.map((c) => ({ id: c.id, name: c.name, kind: c.kind })) }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.message || `Erro ${res.status}`);
-    ui.aiBusy = false;
-    if (!data.entries?.length) { rerender(); return toast(data.message || 'A IA não encontrou lançamentos'); }
-    rerender(); reviewSheet(data.entries, data.message);
+    const { readFinanceFile } = await import('./finance-import.js');
+    const { entries, text } = await readFinanceFile(f, progress);
+    ui.readBusy = null; rerender();
+    if (!entries.length) {
+      toast('Não encontrei valores com certeza. Preencha o lançamento 💜');
+      return entrySheet(undefined, 'despesa', text);
+    }
+    reviewSheet(entries, entries.length > 1 ? `Encontrei ${entries.length} lançamentos. Confira antes de salvar 💜` : 'Encontrei este lançamento. Confira valor, data e categoria antes de salvar 💜', text);
   } catch (e) {
-    ui.aiBusy = false; rerender(); toast(e.message || 'Não foi possível falar com a IA');
+    ui.readBusy = null; rerender(); toast(e.message || 'Não consegui ler esse arquivo');
   }
 };
 
 const catOptions = (sel, kind) => ['despesa', 'receita'].filter((k) => !kind || k === kind).map((k) =>
   `<optgroup label="${k === 'despesa' ? 'Despesas' : 'Receitas'}">${cats(k).map((c) => opt(c.id, c.name, sel)).join('')}</optgroup>`).join('');
 
-function reviewSheet(list, message) {
-  sheet(`A IA encontrou ${list.length} lançamento${list.length > 1 ? 's' : ''}`, `<form class="form">
-    ${message ? `<p class="ai-msg">✨ ${esc(message)}</p>` : ''}
+function reviewSheet(list, message, text = '') {
+  sheet(`Encontrei ${list.length} lançamento${list.length > 1 ? 's' : ''}`, `<form class="form">
+    ${message ? `<p class="ai-msg">📷 ${esc(message)}</p>` : ''}
+    ${text ? `<details class="read-text"><summary>Ver o texto que o app leu</summary><pre>${esc(text.slice(0, 4000))}</pre></details>` : ''}
     ${list.map((x, i) => `<fieldset class="rev ${x.kind === 'receita' ? 'in' : ''}">
       <label class="toggle-line"><input type="checkbox" name="inc" value="${i}" checked><span><b>Lançar este</b></span></label>
       <div class="row gap"><label class="field grow"><span>Tipo</span><select name="kind_${i}">${opt('despesa', 'Despesa', x.kind)}${opt('receita', 'Receita', x.kind)}</select></label>
@@ -103,8 +66,7 @@ function reviewSheet(list, message) {
       const inc = fd.getAll('inc').map(Number);
       const out = inc.map((i) => ({ kind: fd.get(`kind_${i}`), amount: fd.get(`amount_${i}`), desc: fd.get(`desc_${i}`), date: fd.get(`date_${i}`),
         cat: fd.get(`cat_${i}`), status: fd.get(`status_${i}`), due: fd.get(`due_${i}`), note: fd.get(`note_${i}`) || '' }));
-      const saved = addEntries(out, 'ia');
-      ui.aiText = ''; ui.aiFiles = [];
+      const saved = addEntries(out, 'leitura');
       toast(`${saved.length} lançamento(s) salvo(s) 💜`);
       checkLimits(saved);
     },
@@ -124,10 +86,11 @@ function checkLimits(changed) {
 }
 
 /* ---------------- lançamento manual ---------------- */
-function entrySheet(e, kind = 'despesa') {
+function entrySheet(e, kind = 'despesa', readText = '') {
   const isNew = !e || e._new;
   const x = e || { kind, amount: '', desc: '', date: dateKey(), cat: cats(kind)[0]?.id, status: 'pago', due: '', note: '' };
   sheet(isNew ? 'Novo lançamento' : 'Editar lançamento', `<form class="form">
+    ${readText ? `<details class="read-text"><summary>Ver o texto que o app leu</summary><pre>${esc(readText.slice(0, 4000))}</pre></details>` : ''}
     <div class="seg">${['despesa', 'receita'].map((k) => `<label><input type="radio" name="kind" value="${k}" ${x.kind === k ? 'checked' : ''}><span>${k === 'despesa' ? '➖ Despesa' : '➕ Receita'}</span></label>`).join('')}</div>
     <label class="field"><span>Valor (R$)</span><input name="amount" inputmode="decimal" required value="${x.amount ? esc(String(x.amount).replace('.', ',')) : ''}" placeholder="0,00"></label>
     <label class="field"><span>Descrição</span><input name="desc" value="${esc(x.desc)}" placeholder="Ex.: Mercado do mês"></label>
@@ -166,7 +129,7 @@ A.finPay = (el) => {
 function row(e, { pay = false } = {}) {
   const c = cat(e.cat); const late = isLate(e);
   return `<li class="fin-row" data-act="finEdit" data-id="${e.id}"><span class="t-icon bg-soft-${c.color || 'violet'}">${c.icon || '📦'}</span>
-    <div class="grow"><b>${esc(e.desc)}</b><small>${esc(c.name)}${e.status === 'pendente' ? ` · <span class="${late ? 'late-txt' : ''}">${late ? 'venceu' : 'vence'} ${fmtShort(e.due)}</span>` : ''}${e.src === 'ia' ? ' · ✨' : ''}</small></div>
+    <div class="grow"><b>${esc(e.desc)}</b><small>${esc(c.name)}${e.status === 'pendente' ? ` · <span class="${late ? 'late-txt' : ''}">${late ? 'venceu' : 'vence'} ${fmtShort(e.due)}</span>` : ''}${e.src === 'leitura' || e.src === 'ia' ? ' · 📷' : ''}</small></div>
     <div class="fin-amt"><b class="${e.kind === 'receita' ? 'in' : ''}">${e.kind === 'receita' ? '+' : '−'} ${money(e.amount)}</b>
     ${pay && e.status === 'pendente' ? `<button class="btn small ghost pay-btn" data-act="finPay" data-id="${e.id}">✓ ${e.kind === 'receita' ? 'Recebi' : 'Paguei'}</button>` : ''}</div></li>`;
 }
@@ -180,7 +143,7 @@ function tabResumo(m) {
   const pend = F().entries.filter((e) => e.status === 'pendente').sort((a, b) => (a.due || '').localeCompare(b.due || '')).slice(0, 4);
   const year = m.slice(0, 4);
   const months = Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}`).map((mm) => ({ mm, ...monthSummary(mm) })).filter((x) => x.entries.length);
-  return `${aiCard()}
+  return `${readerCard()}
   <div class="stats three fin-stats">
     <div class="stat"><span>➕</span><b>${money(s.receitas)}</b><small>receitas</small></div>
     <div class="stat"><span>➖</span><b>${money(s.despesas)}</b><small>despesas</small></div>
@@ -211,7 +174,7 @@ function tabLanc(m) {
   if (q) es = es.filter((e) => `${e.desc} ${cat(e.cat).name} ${e.note || ''}`.toLowerCase().includes(q));
   const byDay = {};
   for (const e of es.sort((a, b) => (b.status === 'pendente' ? b.due : b.date).localeCompare(a.status === 'pendente' ? a.due : a.date))) (byDay[e.status === 'pendente' ? e.due : e.date] ||= []).push(e);
-  return `${aiCard()}
+  return `${readerCard()}
   <div class="row gap"><button class="btn small primary grow" data-act="finNew" data-k="despesa">➖ Despesa</button><button class="btn small ghost grow" data-act="finNew" data-k="receita">➕ Receita</button></div>
   <div class="seg mt">${[['todos', 'Todos'], ['despesa', 'Despesas'], ['receita', 'Receitas']].map(([k, l]) => `<button class="${f === k ? 'on' : ''}" data-act="finFilter" data-f="${k}">${l}</button>`).join('')}</div>
   <div class="row gap fin-filters"><input class="grow search" placeholder="Buscar…" value="${esc(ui.finSearch || '')}" data-change="finSearch">
