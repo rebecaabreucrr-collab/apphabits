@@ -3,6 +3,7 @@ import { state } from './store.js';
 import { esc, dateKey, addDays, weekStart, parseKey, MONTHS, WD, fmtMinutes, fmtShort, diffDays } from './utils.js';
 import { A, ui, rerender, ring, bar, toast } from './ui.js';
 import { sleepRange } from './view-sleep.js';
+import { streaksCard, streakLine } from './view-streaks.js';
 import { tasksFor, isDone, waterTotal, medPerDay, medTaken, activeChallenge, challengeDay, dayScore, workoutFor } from './logic.js';
 
 const PERIODS = { semana: 'Semana', mes: 'Mês', ano: 'Ano' };
@@ -54,7 +55,7 @@ export function computeReport(s, e) {
       const key = task.kind === 'med' ? `med:${task.medId}` : task.id;
       const ok = !!isDone(task, d);
       t++; if (ok) k++;
-      const p = (per[key] ||= { title: task.title, icon: task.icon, color: task.color, total: 0, done: 0 });
+      const p = (per[key] ||= { id: key, title: task.title, icon: task.icon, color: task.color, total: 0, done: 0 });
       p.total++; if (ok) p.done++;
     }
     total += t; done += k;
@@ -147,9 +148,10 @@ function renderReport() {
   </section>
   <div class="stats three">
     <div class="stat"><span>⭐</span><b>${r.perfect}</b><small>dias 100%</small></div>
-    <div class="stat"><span>🔥</span><b>${r.good}</b><small>dias acima de 80%</small></div>
+    <div class="stat"><span>⚡</span><b>${r.good}</b><small>dias acima de 80%</small></div>
     <div class="stat"><span>🏆</span><b>${r.best ? fmtShort(r.best.d) : '–'}</b><small>melhor dia${r.best ? ` (${Math.round(r.best.p * 100)}%)` : ''}</small></div>
   </div>
+  ${streaksCard()}
   <section class="card"><div class="card-head"><h2>Conclusão por ${period === 'ano' ? 'mês' : 'dia'}</h2><small>toque numa barra</small></div>${chart(period, r, s, e)}</section>
   <section class="card"><h2>Hábitos</h2>
     ${habit('💧', 'Água', `${h.waterDays}/${r.n}`, `dias com a meta batida · média ${h.waterAvg} ml/dia`, r.n ? h.waterDays / r.n : 0)}
@@ -164,7 +166,7 @@ function renderReport() {
   </section>
   <section class="card"><div class="card-head"><h2>Cada tarefa</h2><small>${tasks.length} itens</small></div>
     <ul class="rep-tasks">${tasks.map((t) => `<li><span class="t-icon bg-soft-${t.color || 'rose'}">${t.icon || '✅'}</span>
-      <div class="grow"><div class="row between"><b>${esc(t.title)}</b><small>${t.done}/${t.total}</small></div>${bar(t.done / t.total)}</div>
+      <div class="grow"><div class="row between"><b>${esc(t.title)}</b><small>${t.done}/${t.total}</small></div>${bar(t.done / t.total)}${streakLine(t.id)}</div>
       <b class="rep-pct ${t.done / t.total >= 0.8 ? 'hi' : t.done / t.total < 0.4 ? 'lo' : ''}">${pct(t.done, t.total)}%</b></li>`).join('')}</ul>
   </section>
   <p class="small muted center">Finanças não entram no relatório. Os dias antes do primeiro uso do app também não contam.</p>`}`;

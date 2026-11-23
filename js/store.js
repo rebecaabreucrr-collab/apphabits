@@ -81,6 +81,9 @@ function migrate(s) {
       tabs.splice(i >= 0 ? i + 1 : tabs.length, 0, { id: 'ingles', label: 'Inglês' });
     }
   }
+  // sequências ficam dentro do relatório (sem aba ou card próprio)
+  s.settings.tabs = (s.settings.tabs || []).filter((t) => t.id !== 'sequencias');
+  if (s.settings.home?.cards) s.settings.home.cards = s.settings.home.cards.filter((c) => c.id !== 'sequencias');
   const H = defaultHome();
   s.settings.home ||= H;
   for (const k of Object.keys(H)) if (s.settings.home[k] === undefined) s.settings.home[k] = H[k];

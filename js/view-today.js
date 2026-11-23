@@ -10,7 +10,7 @@ import { studyDay, englishDay, lastSession, TRACKS } from './view-study.js';
 import { monthSummary, thisMonth, money } from './finance.js';
 import { weeklyBlock, goalsTile } from './view-goals.js';
 import { sleepTile } from './view-sleep.js';
-import { streaksTile, streakBadge, celebrate } from './view-streaks.js';
+import { streakBadge, celebrate } from './view-streaks.js';
 import { MASKS, PHRASES } from './defaults.js';
 import { taskSheet, avatarHtml } from './forms.js';
 import { bar } from './ui.js';
@@ -230,7 +230,6 @@ function tileMap(k) {
     <small>${lastEn ? esc(lastEn.materia) : 'Inglês de hoje'}</small></div></a>`;
   T.metas = goalsTile();
   T.sono = sleepTile();
-  T.sequencias = streaksTile();
   { const fm = monthSummary(thisMonth()); const tl = Number(state.finance.totalLimit) || 0;
     const next = state.finance.entries.filter((e) => e.status === 'pendente' && e.kind === 'despesa').sort((a, b) => (a.due || '').localeCompare(b.due || ''))[0];
     T.financas = `<a class="tile t-violet" href="#/financas"><span class="tile-ico">👛</span><div><b>${money(fm.saldo)}</b>

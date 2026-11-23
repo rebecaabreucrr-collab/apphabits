@@ -211,7 +211,6 @@ export const TAB_DEFS = {
   financas: { label: 'Finanças', icon: 'wallet' },
   metas: { label: 'Metas', icon: 'target' },
   sono: { label: 'Sono', icon: 'moon' },
-  sequencias: { label: 'Sequências', icon: 'flame' },
   relatorio: { label: 'Relatório', icon: 'pie' },
   treinos: { label: 'Treinos', icon: 'dumbbell' },
   rotina: { label: 'Rotina', icon: 'calendar' },
@@ -224,14 +223,14 @@ export const LAYOUTS = {
   minimal: { name: 'Minimalista', desc: 'Claro, com detalhes rosa' },
 };
 export const CARD_NAMES = {
-  desafio: 'Desafio', metas: 'Metas', sequencias: 'Sequências', sono: 'Sono', treino: 'Treino', remedios: 'Remédios', estudo: 'Estudo', ingles: 'Inglês', financas: 'Finanças', cabelo: 'Cabelo', leitura: 'Leitura', skincare: 'Skincare',
+  desafio: 'Desafio', metas: 'Metas', sono: 'Sono', treino: 'Treino', remedios: 'Remédios', estudo: 'Estudo', ingles: 'Inglês', financas: 'Finanças', cabelo: 'Cabelo', leitura: 'Leitura', skincare: 'Skincare',
   agua: 'Água', ciclo: 'Meu ciclo',
 };
 export const SQUARE_NAMES = { nenhum: 'Nenhum', ciclo: 'Meu ciclo', agua: 'Água', desafio: 'Desafio', leitura: 'Leitura', estudo: 'Estudo', ingles: 'Inglês', remedios: 'Remédios' };
 export function defaultHome() {
   return {
     square2: 'ciclo',
-    cards: ['metas', 'sequencias', 'sono', 'desafio', 'treino', 'remedios', 'estudo', 'ingles', 'financas', 'cabelo', 'leitura', 'skincare', 'agua', 'ciclo']
+    cards: ['metas', 'sono', 'desafio', 'treino', 'remedios', 'estudo', 'ingles', 'financas', 'cabelo', 'leitura', 'skincare', 'agua', 'ciclo']
       .map((id) => ({ id, on: !['agua', 'ciclo'].includes(id) })),
     cardsLayout: 'grid',
     groupRoutine: true,

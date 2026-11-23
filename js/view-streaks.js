@@ -99,48 +99,43 @@ const monthOf = (d) => d.slice(0, 7);
 const pausesIn = (m) => Object.keys(S().pauses).filter((d) => monthOf(d) === m);
 const PAUSE_REASONS = { doente: 'Doente', viagem: 'Viagem', descanso: 'Descanso', outro: 'Outro' };
 
-/* ---------- tela ---------- */
-function renderStreaks() {
+/* ---------- bloco dentro do Relatório ---------- */
+export function streaksCard() {
   const st = S(); const today = dateKey();
-  const list = visibleHabits().map((h) => ({ h, ...streakOf(h) })).sort((a, b) => b.cur - a.cur || b.best - a.best);
-  const top = list[0];
-  const active = list.filter((x) => x.cur > 0).length;
-  const atRisk = list.filter((x) => x.cur > 0 && x.today === 'falta');
-  const m = monthOf(today); const used = pausesIn(m);
-  const yest = addDays(today, -1);
-  const row = (x) => `<li class="streak-row ${x.today === 'feito' ? 'lit' : ''}">
-    <span class="t-icon bg-soft-${x.h.color || 'rose'}">${x.h.icon || '✅'}</span>
-    <div class="grow"><b>${esc(x.h.title)}</b><small>${x.today === 'feito' ? 'feito hoje ✓' : x.today === 'falta' ? (x.cur ? 'faça hoje para manter' : 'comece hoje') : 'hoje não tem'} · recorde ${x.best}</small></div>
-    <span class="streak-num"><span class="fl">🔥</span><b>${x.cur}</b><small>${unitLabel(x.h, x.cur)}</small></span></li>`;
-  return `<header class="page-head top"><h1>Sequências</h1></header>
-  <section class="card streak-hero">
-    <span class="streak-big">🔥</span>
-    <div class="grow">${top && top.cur ? `<small>Maior sequência agora</small><b>${streakText(top.h, top.cur)}</b><small>${esc(top.h.title)} · ${active} hábito${active === 1 ? '' : 's'} em sequência</small>`
-      : '<b>Comece hoje 💜</b><small>Cada hábito cumprido no dia em que está programado soma 1. Dia sem o hábito ou dia de pausa não quebra.</small>'}</div>
-  </section>
-  ${atRisk.length ? `<section class="card warn-soft"><b>Para não perder hoje</b><small>${atRisk.map((x) => `${esc(x.h.title)} (🔥 ${x.cur})`).join(' · ')}</small></section>` : ''}
-  ${!st.on ? '<p class="muted small">As sequências estão desligadas. Ligue nas opções abaixo.</p>' : ''}
-  <section class="card"><ul class="mini-list streak-list">${list.map(row).join('')}</ul></section>
-  <section class="card">
-    <div class="card-head"><h2>Dias de pausa</h2><small>${used.length} de ${st.perMonth} em ${MONTHS[Number(m.slice(5)) - 1]}</small></div>
-    <p class="small muted">Ficou doente ou viajou? Marque o dia como pausa e nenhuma sequência zera.</p>
-    ${used.length < st.perMonth ? `<div class="row gap wrap mt">
+  const list = visibleHabits().map((h) => ({ h, ...streakOf(h) }));
+  const live = list.filter((x) => x.cur > 0).sort((a, b) => b.cur - a.cur);
+  const risk = live.filter((x) => x.today === 'falta');
+  const m = monthOf(today); const used = pausesIn(m); const yest = addDays(today, -1);
+  const canPause = st.on && used.length < st.perMonth;
+  return `<section class="card streak-card" id="sequencias">
+    <div class="card-head"><h2>🔥 Sequências agora</h2><small>${live.length ? `${live.length} em andamento` : ''}</small></div>
+    ${!st.on ? '<p class="small muted">Desligadas. Ligue nas opções abaixo.</p>'
+      : live.length ? `<div class="streak-chips">${live.map((x) => `<span class="streak-chip ${x.today === 'feito' ? 'lit' : ''}" title="recorde ${x.best}"><span class="t-icon bg-soft-${x.h.color || 'rose'}">${x.h.icon || '✅'}</span>${esc(x.h.title)} <b>${x.cur}</b></span>`).join('')}</div>
+        ${risk.length ? `<p class="small mt"><b>Falta hoje para manter:</b> ${risk.map((x) => esc(x.h.title)).join(', ')}</p>` : '<p class="small muted mt">Tudo em dia hoje ✓</p>'}`
+      : '<p class="small muted">Nenhuma sequência ainda. Cada hábito feito no dia em que está programado soma 1; dia sem o hábito ou de pausa não quebra.</p>'}
+    <div class="streak-pause mt">
+      <div class="grow"><b>Dias de pausa</b><small>${used.length} de ${st.perMonth} usados em ${MONTHS[Number(m.slice(5)) - 1]} · doente ou viagem não zera a sequência</small></div>
+    </div>
+    ${canPause ? `<div class="row gap wrap mt">
       <select class="mini-select" id="pause-reason">${Object.entries(PAUSE_REASONS).map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select>
-      ${!st.pauses[today] ? '<button class="btn small" data-act="streakPause" data-d="' + today + '">Pausar hoje</button>' : ''}
-      ${!st.pauses[yest] && monthOf(yest) === m ? '<button class="btn small ghost" data-act="streakPause" data-d="' + yest + '">Pausar ontem</button>' : ''}</div>`
-      : '<p class="small mt">Você já usou as pausas deste mês.</p>'}
-    ${Object.keys(st.pauses).length ? `<ul class="mini-list mt">${Object.keys(st.pauses).sort().reverse().slice(0, 6).map((d) => `<li><div class="grow"><b>${fmtShort(d)}</b><small>${PAUSE_REASONS[st.pauses[d]] || ''}</small></div>
+      ${!st.pauses[today] ? `<button class="btn small" data-act="streakPause" data-d="${today}">Pausar hoje</button>` : ''}
+      ${!st.pauses[yest] && monthOf(yest) === m ? `<button class="btn small ghost" data-act="streakPause" data-d="${yest}">Pausar ontem</button>` : ''}</div>` : ''}
+    ${used.length ? `<ul class="mini-list mt">${used.sort().reverse().map((d) => `<li><div class="grow"><b>${fmtShort(d)}</b><small>${PAUSE_REASONS[st.pauses[d]] || ''}</small></div>
       <button class="icon-btn sm" data-act="streakUnpause" data-d="${d}" aria-label="Tirar pausa">✕</button></li>`).join('')}</ul>` : ''}
-  </section>
-  <section class="card">
-    <h2>Opções</h2>
-    <label class="toggle-row"><span><b>Contar sequências</b></span><input type="checkbox" class="switch" data-change="streakSet" data-k="on" ${st.on ? 'checked' : ''}></label>
-    <label class="toggle-row"><span><b>Mostrar 🔥 na rotina do dia</b></span><input type="checkbox" class="switch" data-change="streakSet" data-k="inList" ${st.inList ? 'checked' : ''}></label>
-    <label class="toggle-row"><span><b>Pausas por mês</b></span><select class="mini-select" data-change="streakSet" data-k="perMonth">${[0, 1, 2, 3, 4].map((n) => `<option value="${n}" ${n === st.perMonth ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
-    <details class="mt"><summary><b>Escolher hábitos</b> <small class="muted">${habits().length - st.hidden.length} de ${habits().length}</small></summary>
+    <details class="mt"><summary><b>Opções</b></summary>
+      <label class="toggle-row"><span><b>Contar sequências</b></span><input type="checkbox" class="switch" data-change="streakSet" data-k="on" ${st.on ? 'checked' : ''}></label>
+      <label class="toggle-row"><span><b>Mostrar 🔥 na rotina do dia</b></span><input type="checkbox" class="switch" data-change="streakSet" data-k="inList" ${st.inList ? 'checked' : ''}></label>
+      <label class="toggle-row"><span><b>Pausas por mês</b></span><select class="mini-select" data-change="streakSet" data-k="perMonth">${[0, 1, 2, 3, 4].map((n) => `<option value="${n}" ${n === st.perMonth ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+      <p class="small muted mt">Hábitos que contam:</p>
       ${habits().map((h) => `<label class="toggle-row"><span><b>${h.icon || ''} ${esc(h.title)}</b></span><input type="checkbox" class="switch" data-change="streakHabit" data-id="${h.id}" ${st.hidden.includes(h.id) ? '' : 'checked'}></label>`).join('')}
     </details>
   </section>`;
+}
+/** linha pequena para a lista "Cada tarefa" do relatório */
+export function streakLine(id) {
+  if (!S().on || S().hidden.includes(id)) return '';
+  const s = streakById(id); if (!s || (!s.cur && !s.best)) return '';
+  return `<small class="streak-line ${s.today === 'feito' ? 'lit' : ''}">🔥 ${s.cur ? streakText(s.h, s.cur) : 'sem sequência agora'} · recorde ${s.best}</small>`;
 }
 
 A.streakPause = (el) => {
@@ -157,14 +152,5 @@ C.streakHabit = (el) => {
   save(); rerender();
 };
 
-/** tile da tela inicial */
-export function streaksTile() {
-  if (!S().on) return `<a class="tile t-rose" href="#/sequencias"><span class="tile-ico">🔥</span><div><b>Sequências</b><small>desligadas</small></div></a>`;
-  const list = visibleHabits().map((h) => ({ h, ...streakOf(h) })).sort((a, b) => b.cur - a.cur);
-  const top = list[0]; const risk = list.filter((x) => x.cur > 0 && x.today === 'falta').length;
-  if (!top || !top.cur) return `<a class="tile t-rose" href="#/sequencias"><span class="tile-ico">🔥</span><div><b>Sequências</b><small>comece hoje</small></div></a>`;
-  return `<a class="tile t-rose" href="#/sequencias"><span class="tile-ico">🔥</span><div><b>${streakText(top.h, top.cur)}</b>
-    <small>${esc(top.h.title)}${risk ? ` · ${risk} para manter hoje` : ' · tudo em dia'}</small></div></a>`;
-}
-
-export const routes = { sequencias: { render: renderStreaks, tab: 'sequencias' } };
+// links antigos para a tela de sequências abrem o relatório
+export const routes = { sequencias: { render: () => { setTimeout(() => location.replace('#/relatorio'), 0); return ''; }, tab: 'relatorio' } };
