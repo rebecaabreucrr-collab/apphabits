@@ -25,6 +25,7 @@ export function useAccount(uid, name = '') {
 export function useLocal() { KEY = BASE; load(); }
 
 export function load() {
+  version++;
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem(KEY)); } catch { saved = null; }
   state = saved && typeof saved === 'object' ? saved : defaultState();
@@ -100,9 +101,11 @@ function write() {
 }
 /** avisos para a sincronização (preenchido por sync.js) */
 export const hooks = { afterSave: null };
+/** muda a cada alteração (para caches de cálculo) */
+export let version = 0;
 
 export function save() {
-  (state.meta ||= {}).updatedAt = Date.now();
+  (state.meta ||= {}).updatedAt = Date.now(); version++;
   write();
   hooks.afterSave?.();
 }
@@ -110,6 +113,7 @@ export function save() {
 /** fromSync: dados vindos de outro aparelho — mantém a data deles e não reenvia */
 export function replaceState(obj, { fromSync = false } = {}) {
   state = obj; fill(state, defaultState()); migrate(state);
+  version++;
   if (fromSync) write(); else save();
 }
 

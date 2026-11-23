@@ -10,6 +10,7 @@ import { studyDay, englishDay, lastSession, TRACKS } from './view-study.js';
 import { monthSummary, thisMonth, money } from './finance.js';
 import { weeklyBlock, goalsTile } from './view-goals.js';
 import { sleepTile } from './view-sleep.js';
+import { streaksTile, streakBadge, celebrate } from './view-streaks.js';
 import { MASKS, PHRASES } from './defaults.js';
 import { taskSheet, avatarHtml } from './forms.js';
 import { bar } from './ui.js';
@@ -98,7 +99,7 @@ function taskRow(t, k, highlight) {
     <div class="t-time">${esc(t.time || '—')}</div>
     <button class="t-main" data-act="openTask" data-id="${t.id}">
       <span class="t-icon bg-soft-${t.color || 'rose'}">${t.icon || '✅'}</span>
-      <span class="t-text"><b>${esc(t.title)}</b><small>${subtitle(t, k)}</small>${(() => { const sp = t.type === 'remedio' ? null : stepProgress(t, k); return sp ? `<span class="t-bar ${sp[0] >= sp[1] ? 'full' : ''}"><i style="width:${Math.round((sp[0] / sp[1]) * 100)}%"></i></span>` : ''; })()}</span>
+      <span class="t-text"><b>${esc(t.title)}${t.kind === 'routine' ? streakBadge(t.id) : ''}</b><small>${subtitle(t, k)}</small>${(() => { const sp = t.type === 'remedio' ? null : stepProgress(t, k); return sp ? `<span class="t-bar ${sp[0] >= sp[1] ? 'full' : ''}"><i style="width:${Math.round((sp[0] / sp[1]) * 100)}%"></i></span>` : ''; })()}</span>
       ${special ? '<span class="t-go">›</span>' : ''}
     </button>
     ${check(done, 'toggleTask', `data-id="${t.id}"`, `Concluir ${t.title}`)}
@@ -229,6 +230,7 @@ function tileMap(k) {
     <small>${lastEn ? esc(lastEn.materia) : 'Inglês de hoje'}</small></div></a>`;
   T.metas = goalsTile();
   T.sono = sleepTile();
+  T.sequencias = streaksTile();
   { const fm = monthSummary(thisMonth()); const tl = Number(state.finance.totalLimit) || 0;
     const next = state.finance.entries.filter((e) => e.status === 'pendente' && e.kind === 'despesa').sort((a, b) => (a.due || '').localeCompare(b.due || ''))[0];
     T.financas = `<a class="tile t-violet" href="#/financas"><span class="tile-ico">👛</span><div><b>${money(fm.saldo)}</b>
@@ -440,7 +442,8 @@ A.toggleTask = (el) => {
   toggleDone(t, ui.date);
   if (isDone(t, ui.date) && navigator.vibrate) navigator.vibrate(15);
   const p = dayProgress(ui.date);
-  if (p.pct >= 1 && isDone(t, ui.date)) toast('Dia 100% concluído! 🎉');
+  const shown = isDone(t, ui.date) && ui.date === dateKey() && state.routine.some((r) => r.id === t.id) && celebrate(t.id);
+  if (!shown && p.pct >= 1 && isDone(t, ui.date)) toast('Dia 100% concluído! 🎉');
   rerender();
 };
 A.goalToggle = (el) => {

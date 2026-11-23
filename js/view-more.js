@@ -42,8 +42,9 @@ function renderMore() {
   <section class="card menu">
     ${item('#/metas', '🎯', 'Metas e desafio', 'Objetivos do mês e do ano, desafio de 20 dias', 'violet')}
     ${item('#/revisao', '📝', 'Revisão da semana', 'O que deu certo, o que travou e as prioridades', 'pink')}
+    ${item('#/sequencias', '🔥', 'Sequências', 'Dias seguidos de cada hábito, recorde e pausas', 'rose')}
     ${item('#/sono', '🌙', 'Sono', 'Horários, qualidade e meta de horas', 'sky')}
-    ${item('#/financas', '👛', 'Finanças', 'Receitas, despesas, contas, limites e IA', 'violet')}
+    ${item('#/financas', '👛', 'Finanças', 'Receitas, despesas, contas, limites e leitura de fotos', 'violet')}
     ${item('#/relatorio', '📊', 'Relatório', 'Quão produtiva fui na semana, no mês e no ano', 'pink')}
     ${item('#/ciclo', '🌸', 'Meu ciclo', 'Menstruação, período fértil e ovulação', 'pink')}
     ${item('#/estudo', '📚', 'Estudo', 'Cronômetro, matérias, onde parei e histórico', 'sky')}
@@ -118,7 +119,7 @@ A.setLayout = (el) => { state.settings.layout = el.dataset.l; save(); rerender()
 A.setTheme = (el) => { state.settings.theme = el.dataset.t; save(); rerender(); };
 
 /* ---------- Abas ---------- */
-const OPTIONAL_TABS = ['metas', 'desafio', 'estudo', 'ingles', 'financas', 'relatorio', 'sono', 'leitura', 'cuidados', 'ciclo', 'remedios', 'treinos', 'rotina'];
+const OPTIONAL_TABS = ['metas', 'sequencias', 'desafio', 'estudo', 'ingles', 'financas', 'relatorio', 'sono', 'leitura', 'cuidados', 'ciclo', 'remedios', 'treinos', 'rotina'];
 function renderTabs() {
   const on = state.settings.tabs;
   const off = OPTIONAL_TABS.filter((id) => !on.some((t) => t.id === id));

@@ -74,8 +74,6 @@ function renderSkincare(p) {
   <p class="sub">${fmtLong(k)}</p>
   <div class="seg">${['am', 'pm'].map((x) => `<a class="${x === key ? 'on' : ''}" href="#/skincare?r=${x}&d=${k}">${x === 'am' ? '☀️ Manhã' : '🌙 Noite'}${skinActive(x) ? '' : ' (pausada)'}</a>`).join('')}</div>
   ${skinSwitch(key)}
-  ${!skinActive(key) ? `<section class="card paused-card"><b>⏸ Rotina da ${r.name.toLowerCase()} pausada</b>
-    <p class="small muted">Ela não aparece na rotina do dia nem nos cards. Quando tiver os produtos, é só ligar de novo aqui em cima.</p></section>` : ''}
   <section class="card hero-mini bg-grad-emerald ${skinActive(key) ? '' : 'is-paused'}"><small>Rotina da ${r.name.toLowerCase()}</small><h2>${n}/${r.steps.length} passos</h2>${bar(n / (r.steps.length || 1), 'light')}</section>
   ${r.steps.length ? `<ol class="list steps">${r.steps.map((s, i) => `<li class="${log.steps[s.id] ? 'done' : ''}">
       ${check(!!log.steps[s.id], 'skinToggle', `data-d="${k}" data-r="${key}" data-s="${s.id}"`, productName(s.productId))}
@@ -93,7 +91,7 @@ function renderSkincare(p) {
 }
 function skinSwitch(key) {
   const r = state.skincare[key];
-  return `<label class="toggle-row card skin-switch"><span><b>Estou fazendo a rotina da ${r.name.toLowerCase()}</b><small>${skinActive(key) ? 'aparece na rotina do dia' : 'pausada — desligue quando faltar produto'}</small></span>
+  return `<label class="toggle-row card skin-switch"><span><b>Fazer a rotina da ${r.name.toLowerCase()}</b></span>
     <input type="checkbox" class="switch" data-change="skinActive" data-r="${key}" ${skinActive(key) ? 'checked' : ''}></label>`;
 }
 C.skinActive = (el) => {
@@ -149,7 +147,7 @@ function renderSkincareEdit() {
     const r = state.skincare[key];
     return `<section class="card ${skinActive(key) ? '' : 'is-paused'}"><div class="card-head"><h2>${key === 'am' ? '☀️' : '🌙'} ${esc(r.name)}${skinActive(key) ? '' : ' <small class="muted">· pausada</small>'}</h2>
       <button class="link" data-act="skinStep" data-r="${key}">+ Passo</button></div>
-      <label class="toggle-row"><span><b>Fazendo esta rotina</b><small>desligue quando não tiver como fazer</small></span>
+      <label class="toggle-row"><span><b>Fazer esta rotina</b></span>
         <input type="checkbox" class="switch" data-change="skinActive" data-r="${key}" ${skinActive(key) ? 'checked' : ''}></label>
       ${r.steps.length ? `<ol class="list steps">${r.steps.map((s, i) => `<li>
         <span class="t-icon skin-ic" data-act="skinStep" data-r="${key}" data-s="${s.id}">${s.icon || '✨'}</span>

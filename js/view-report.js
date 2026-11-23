@@ -9,7 +9,7 @@ const PERIODS = { semana: 'Semana', mes: 'Mês', ano: 'Ano' };
 const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
 
 /** primeiro dia com algum registro (dias antes disso não entram no relatório) */
-function sinceDate() {
+export function sinceDate() {
   const keys = [
     ...Object.keys(state.done || {}), ...Object.keys(state.water?.log || {}), ...Object.keys(state.medLog || {}),
     ...Object.keys(state.skinLog || {}), ...Object.keys(state.workoutLog || {}), ...Object.keys(state.hair?.log || {}),
