@@ -2,7 +2,7 @@
 import { state, save } from './store.js';
 import { esc, dateKey, fmtLong, fmtRel, fmtShort, WD_FULL, weekday, uid, diffDays, addDays } from './utils.js';
 import { A, C, ui, check, sheet, go, rerender, toast, empty, pageHead, bar, opt, confirmSheet } from './ui.js';
-import { workoutFor, workoutLog, markTypeDone, hairDay, ensureHairLog, washOn, postponeWash, nextWashes, hairStepsFor, setHairStart, nextScheduled, asList,
+import { workoutFor, workoutLog, markTypeDone, hairDay, ensureHairLog, washOn, postponeWash, nextWashes, hairStepsFor, setHairStart, nextScheduled, asList, skinActive,
   reconstructionsInMonth, skinLog, peekSkin, productUsage, product, productName, tasksFor, isDone } from './logic.js';
 import { MASKS, CATEGORIES, SKIN_EMOJIS, guessSkinIcon } from './defaults.js';
 import { productSheet, productOptions, emojiGrid } from './forms.js';
@@ -72,8 +72,11 @@ function renderSkincare(p) {
   const n = r.steps.filter((s) => log.steps[s.id]).length;
   return `${pageHead('Skincare', '#/hoje', `<a class="link" href="#/skincare-edit">Editar passos</a>`)}
   <p class="sub">${fmtLong(k)}</p>
-  <div class="seg">${['am', 'pm'].map((x) => `<a class="${x === key ? 'on' : ''}" href="#/skincare?r=${x}&d=${k}">${x === 'am' ? '☀️ Manhã' : '🌙 Noite'}</a>`).join('')}</div>
-  <section class="card hero-mini bg-grad-emerald"><small>Rotina da ${r.name.toLowerCase()}</small><h2>${n}/${r.steps.length} passos</h2>${bar(n / (r.steps.length || 1), 'light')}</section>
+  <div class="seg">${['am', 'pm'].map((x) => `<a class="${x === key ? 'on' : ''}" href="#/skincare?r=${x}&d=${k}">${x === 'am' ? '☀️ Manhã' : '🌙 Noite'}${skinActive(x) ? '' : ' (pausada)'}</a>`).join('')}</div>
+  ${skinSwitch(key)}
+  ${!skinActive(key) ? `<section class="card paused-card"><b>⏸ Rotina da ${r.name.toLowerCase()} pausada</b>
+    <p class="small muted">Ela não aparece na rotina do dia nem nos cards. Quando tiver os produtos, é só ligar de novo aqui em cima.</p></section>` : ''}
+  <section class="card hero-mini bg-grad-emerald ${skinActive(key) ? '' : 'is-paused'}"><small>Rotina da ${r.name.toLowerCase()}</small><h2>${n}/${r.steps.length} passos</h2>${bar(n / (r.steps.length || 1), 'light')}</section>
   ${r.steps.length ? `<ol class="list steps">${r.steps.map((s, i) => `<li class="${log.steps[s.id] ? 'done' : ''}">
       ${check(!!log.steps[s.id], 'skinToggle', `data-d="${k}" data-r="${key}" data-s="${s.id}"`, productName(s.productId))}
       <span class="t-icon skin-ic">${s.icon || '✨'}</span>
@@ -88,6 +91,16 @@ function renderSkincare(p) {
   </section>
   ${skinHistory()}`;
 }
+function skinSwitch(key) {
+  const r = state.skincare[key];
+  return `<label class="toggle-row card skin-switch"><span><b>Estou fazendo a rotina da ${r.name.toLowerCase()}</b><small>${skinActive(key) ? 'aparece na rotina do dia' : 'pausada — desligue quando faltar produto'}</small></span>
+    <input type="checkbox" class="switch" data-change="skinActive" data-r="${key}" ${skinActive(key) ? 'checked' : ''}></label>`;
+}
+C.skinActive = (el) => {
+  const r = state.skincare[el.dataset.r];
+  r.active = el.checked;
+  save(); toast(el.checked ? `Rotina da ${r.name.toLowerCase()} ativada ✨` : `Rotina da ${r.name.toLowerCase()} pausada`); rerender();
+};
 function skinHistory() {
   const days = Object.keys(state.skinLog).sort().reverse().slice(0, 7);
   if (!days.length) return '';
@@ -134,8 +147,10 @@ A.newProductInline = () => productSheet(undefined, { onSaved: () => toast('Produ
 function renderSkincareEdit() {
   const block = (key) => {
     const r = state.skincare[key];
-    return `<section class="card"><div class="card-head"><h2>${key === 'am' ? '☀️' : '🌙'} ${esc(r.name)}</h2>
+    return `<section class="card ${skinActive(key) ? '' : 'is-paused'}"><div class="card-head"><h2>${key === 'am' ? '☀️' : '🌙'} ${esc(r.name)}${skinActive(key) ? '' : ' <small class="muted">· pausada</small>'}</h2>
       <button class="link" data-act="skinStep" data-r="${key}">+ Passo</button></div>
+      <label class="toggle-row"><span><b>Fazendo esta rotina</b><small>desligue quando não tiver como fazer</small></span>
+        <input type="checkbox" class="switch" data-change="skinActive" data-r="${key}" ${skinActive(key) ? 'checked' : ''}></label>
       ${r.steps.length ? `<ol class="list steps">${r.steps.map((s, i) => `<li>
         <span class="t-icon skin-ic" data-act="skinStep" data-r="${key}" data-s="${s.id}">${s.icon || '✨'}</span>
         <div class="grow" data-act="skinStep" data-r="${key}" data-s="${s.id}"><small class="step-n">Passo ${i + 1}</small><b>${esc(productName(s.productId))}</b><small>${esc(s.how)}</small></div>
@@ -418,7 +433,7 @@ function renderCare() {
     const r = state.skincare[key]; const l = peekSkin(k, key);
     const n = l ? r.steps.filter((s) => l.steps[s.id]).length : 0;
     return `<a class="card care-card" href="#/skincare?r=${key}&d=${k}"><span class="t-icon bg-soft-${key === 'am' ? 'amber' : 'violet'}">${key === 'am' ? '☀️' : '🌙'}</span>
-      <div class="grow"><b>Skincare da ${r.name.toLowerCase()}</b><small>${n}/${r.steps.length} passos hoje</small>${bar(n / (r.steps.length || 1))}</div><span class="t-go">›</span></a>`;
+      <div class="grow"><b>Skincare da ${r.name.toLowerCase()}</b><small>${skinActive(key) ? `${n}/${r.steps.length} passos hoje` : '⏸ pausada'}</small>${skinActive(key) ? bar(n / (r.steps.length || 1)) : ''}</div><span class="t-go">›</span></a>`;
   };
   let body = '';
   if (tab === 'skincare') body = `${skinCard('am')}${skinCard('pm')}<a class="btn ghost block" href="#/skincare-edit">✎ Editar passos e produtos</a>${skinHistory()}`;

@@ -9,10 +9,13 @@ export function tasksFor(k) {
   const routine = state.routine
     .filter((r) => r.days.includes(wd))
     .filter((r) => r.type !== 'cabelo' || hairDay(k).isWash)
+    .filter((r) => r.type !== 'skincare' || skinActive(r.routineKey || 'am'))
     .filter((r) => !(r.from && k < r.from))
     .map((r) => ({ ...r, kind: 'routine' }));
   const once = state.oneOff.filter((o) => o.date === k).map((o) => ({ ...o, kind: 'once', days: [] }));
-  return [...routine, ...once, ...medTasks()].sort((a, b) => toMin(a.time) - toMin(b.time));
+  // sem horário (checklist) primeiro, depois por horário
+  const ord = (t) => (t.time ? toMin(t.time) : -1);
+  return [...routine, ...once, ...medTasks()].sort((a, b) => ord(a) - ord(b));
 }
 
 /* ---------------- Remédios ---------------- */
@@ -256,6 +259,8 @@ export function reconstructionsInMonth(k) {
 }
 
 /* ---------------- Skincare ---------------- */
+/** a rotina (manhã/noite) está sendo feita? (pode ser pausada quando faltam produtos) */
+export const skinActive = (key) => state.skincare[key]?.active !== false;
 export function skinLog(k, key) {
   const day = (state.skinLog[k] ||= {});
   return (day[key] ||= { steps: {}, how: {}, extras: [], notes: '' });

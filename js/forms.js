@@ -1,13 +1,16 @@
 // Formulários compartilhados: tarefa (rotina/avulsa) e produto.
 import { state, save } from './store.js';
 import { esc, uid, WD, dateKey, fmtShort } from './utils.js';
-import { EMOJIS, TASK_TYPES, CATEGORIES, COLORS } from './defaults.js';
+import { EMOJIS, EMOJI_GROUPS, TASK_TYPES, CATEGORIES, COLORS } from './defaults.js';
 import { sheet, closeSheet, rerender, toast, opt, A, confirmSheet } from './ui.js';
 
 const dayChips = (days) => `<div class="chips days">${[1, 2, 3, 4, 5, 6, 0].map((d) =>
   `<label class="chip"><input type="checkbox" name="days" value="${d}" ${days.includes(d) ? 'checked' : ''}><span>${WD[d]}</span></label>`).join('')}</div>`;
 
-export const emojiGrid = (sel, list = EMOJIS) => `<div class="emoji-grid">${list.map((e) =>
+const emojiCell = (e, sel) => `<label><input type="radio" name="icon" value="${e}" ${e === sel ? 'checked' : ''}><span>${e}</span></label>`;
+export const emojiGrid = (sel, list) => (list ? `<div class="emoji-grid">${list.map((e) => emojiCell(e, sel)).join('')}</div>`
+  : `<div class="emoji-groups">${Object.entries(EMOJI_GROUPS).map(([g, l]) => `<small class="emoji-g">${g}</small><div class="emoji-grid">${l.map((e) => emojiCell(e, sel)).join('')}</div>`).join('')}</div>`);
+const emojiGridOld = (sel, list = EMOJIS) => `<div class="emoji-grid">${list.map((e) =>
   `<label><input type="radio" name="icon" value="${e}" ${e === sel ? 'checked' : ''}><span>${e}</span></label>`).join('')}</div>`;
 
 const colorRow = (sel) => `<div class="color-row">${COLORS.map((c) =>
@@ -17,12 +20,14 @@ const colorRow = (sel) => `<div class="color-row">${COLORS.map((c) =>
 export function taskSheet(task, { date = dateKey(), defaultRepeat = 'once' } = {}) {
   const isNew = !task;
   const kind = task ? (state.routine.includes(task) ? 'routine' : 'once') : null;
-  const t = task || { title: '', time: '', end: '', icon: '✅', color: 'rose', days: [], type: 'normal', link: '' };
+  const t = task ? { days: [], ...task } : { title: '', time: '', end: '', icon: '✅', color: 'rose', days: [], type: 'normal', link: '' };
   const repeat = kind || defaultRepeat;
   sheet(isNew ? 'Nova tarefa' : 'Editar tarefa', `
     <form class="form">
       <label class="field"><span>O que fazer?</span><input name="title" required value="${esc(t.title)}" placeholder="Ex.: Tomar vitamina"></label>
-      <div class="row gap">
+      <label class="toggle-row notime-row"><span><b>Sem horário (checklist)</b><small>fica no checklist do dia, antes da manhã</small></span>
+        <input type="checkbox" class="switch" name="notime" ${t.title && !t.time ? 'checked' : ''}></label>
+      <div class="row gap time-row">
         <label class="field grow"><span>Horário</span><input type="time" name="time" value="${esc(t.time)}"></label>
         <label class="field grow"><span>Até (opcional)</span><input type="time" name="end" value="${esc(t.end || '')}"></label>
       </div>
@@ -31,7 +36,7 @@ export function taskSheet(task, { date = dateKey(), defaultRepeat = 'once' } = {
           <label><input type="radio" name="repeat" value="routine" ${repeat === 'routine' ? 'checked' : ''}><span>Repetir na semana</span></label>
         </div>` : `<input type="hidden" name="repeat" value="${kind}">`}
       ${kind === 'once' ? `<label class="field"><span>Data</span><input type="date" name="date" value="${esc(t.date)}"></label>` : ''}
-      <div class="field repeat-only"><span>Dias da semana</span>${dayChips(t.days.length ? t.days : [1, 2, 3, 4, 5, 6, 0])}</div>
+      <div class="field repeat-only"><span>Dias da semana</span>${dayChips(t.days?.length ? t.days : [1, 2, 3, 4, 5, 6, 0])}</div>
       <label class="toggle-line repeat-only"><input type="checkbox" name="flexWeekly" ${t.flexWeekly ? 'checked' : ''}>
         <span>Fazer só <b>uma vez</b> entre os dias marcados (ex.: quinta <i>ou</i> sexta)</span></label>
       <div class="field"><span>Ícone</span>${emojiGrid(t.icon)}</div>
@@ -49,6 +54,7 @@ export function taskSheet(task, { date = dateKey(), defaultRepeat = 'once' } = {
       const sync = () => {
         const r = form.querySelector('[name=repeat]:checked, [name=repeat][type=hidden]')?.value;
         root.querySelectorAll('.repeat-only').forEach((el) => { el.hidden = r !== 'routine'; });
+        root.querySelector('.time-row').hidden = !!form.querySelector('[name=notime]')?.checked;
       };
       form.addEventListener('change', sync); sync();
       root.querySelector('#del-task')?.addEventListener('click', () => {
@@ -61,7 +67,7 @@ export function taskSheet(task, { date = dateKey(), defaultRepeat = 'once' } = {
     },
     onSubmit: (fd) => {
       const data = {
-        title: fd.get('title').trim(), time: fd.get('time') || '', end: fd.get('end') || '',
+        title: fd.get('title').trim(), time: fd.get('notime') ? '' : fd.get('time') || '', end: fd.get('notime') ? '' : fd.get('end') || '',
         icon: fd.get('icon') || '✅', color: fd.get('color') || 'rose', type: fd.get('type') || 'normal',
         link: (fd.get('link') || '').trim(), routineKey: fd.get('routineKey') || 'am',
       };

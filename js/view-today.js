@@ -1,12 +1,13 @@
 // Tela "Hoje": dashboard do dia, linha do tempo e desafio.
 import { state, save } from './store.js';
-import { esc, dateKey, addDays, weekStart, parseKey, WD, fmtLong, greeting, greetingIcon, toMin, nowMin, fmtMinutes, fmtRel, WD_FULL, weekday } from './utils.js';
+import { uid, esc, dateKey, addDays, weekStart, parseKey, WD, fmtLong, greeting, greetingIcon, toMin, nowMin, fmtMinutes, fmtRel, WD_FULL, weekday, fmtShort } from './utils.js';
 import { A, C, ui, ring, check, sheet, go, rerender, toast, empty, opt } from './ui.js';
 import { tasksFor, isDone, toggleDone, dayProgress, findTask, hairDay, workoutFor, workoutLog, readingDay,
   activeChallenge, challengeDay, goalDone, nextWashes, peekSkin, setDone, dayScore, hairStepsFor, taskStatus, waterTotal, addWater, undoWater,
-  medPerDay, medTaken } from './logic.js';
+  medPerDay, medTaken, skinActive } from './logic.js';
 import { cycleWheel } from './view-cycle.js';
 import { studyDay, englishDay, lastSession, TRACKS } from './view-study.js';
+import { monthSummary, thisMonth, money } from './finance.js';
 import { MASKS, PHRASES } from './defaults.js';
 import { taskSheet, avatarHtml } from './forms.js';
 import { bar } from './ui.js';
@@ -224,6 +225,10 @@ function tileMap(k) {
   const en = englishDay(k); const lastEn = lastSession(TRACKS.ingles);
   T.ingles = `<a class="tile t-violet" href="#/ingles"><span class="tile-ico">💬</span><div><b>${fmtMinutes(en / 60)} de inglês</b>
     <small>${lastEn ? esc(lastEn.materia) : 'Inglês de hoje'}</small></div></a>`;
+  { const fm = monthSummary(thisMonth()); const tl = Number(state.finance.totalLimit) || 0;
+    const next = state.finance.entries.filter((e) => e.status === 'pendente' && e.kind === 'despesa').sort((a, b) => (a.due || '').localeCompare(b.due || ''))[0];
+    T.financas = `<a class="tile t-violet" href="#/financas"><span class="tile-ico">👛</span><div><b>${money(fm.saldo)}</b>
+      <small>${tl ? `gasto ${money(fm.despesas)} de ${money(tl)}` : next ? `próxima conta: ${esc(next.desc)} ${fmtShort(next.due)}` : 'saldo do mês'}</small>${tl ? bar(fm.despesas / tl, fm.despesas > tl ? 'over' : '') : ''}</div></a>`; }
   const r = readingDay(k);
   const b = state.books.find((x) => x.id === state.reading.activeBookId);
   const bp = b && b.pages ? (b.current || 0) / b.pages : 0;
@@ -231,10 +236,14 @@ function tileMap(k) {
     <small>${b ? `${esc(b.title)} · ${Math.round(bp * 100)}%` : 'Leitura de hoje'}</small>${b ? bar(bp) : ''}</div></a>`;
   const sk = (key) => { const rr = state.skincare[key]; const l = peekSkin(k, key); return [l ? rr.steps.filter((s) => l.steps[s.id]).length : 0, rr.steps.length]; };
   const [a1, a2] = sk('am'), [p1, p2] = sk('pm');
-  const pmNow = k === dateKey() ? nowMin() >= 15 * 60 || (a2 && a1 >= a2) : false;
-  const [c1, c2] = pmNow ? [p1, p2] : [a1, a2];
-  T.skincare = `<a class="tile t-emerald" href="#/skincare?r=${pmNow ? 'pm' : 'am'}&d=${k}"><span class="tile-ico">🧴</span><div><b>Skincare ${pmNow ? 'noite' : 'manhã'}</b>
-    <small>${c1}/${c2} passos · ${pmNow ? `☀️ ${a1}/${a2}` : `🌙 ${p1}/${p2}`}</small>${bar(c2 ? c1 / c2 : 0)}</div></a>`;
+  const amOn = skinActive('am'), pmOn = skinActive('pm');
+  if (amOn || pmOn) {
+    const pmNow = !amOn || (pmOn && (k === dateKey() ? nowMin() >= 15 * 60 || (a2 && a1 >= a2) : false));
+    const [c1, c2] = pmNow ? [p1, p2] : [a1, a2];
+    const other = pmNow ? (amOn ? ` · ☀️ ${a1}/${a2}` : '') : (pmOn ? ` · 🌙 ${p1}/${p2}` : '');
+    T.skincare = `<a class="tile t-emerald" href="#/skincare?r=${pmNow ? 'pm' : 'am'}&d=${k}"><span class="tile-ico">🧴</span><div><b>Skincare ${pmNow ? 'noite' : 'manhã'}</b>
+    <small>${c1}/${c2} passos${other}</small>${bar(c2 ? c1 / c2 : 0)}</div></a>`;
+  }
   const wt = waterTotal(k);
   T.agua = `<a class="tile t-sky" href="#/hoje"><span class="tile-ico">💧</span><div><b>${wt} ml</b><small>de ${state.water.goal} ml de água</small>${bar(wt / state.water.goal)}</div></a>`;
   const cs = cycleSummary(dateKey());
@@ -292,15 +301,17 @@ function phraseCard(k) {
   const H = state.settings.home;
   const list = H.phrase.trim() ? H.phrase.split('\n').map((x) => x.trim()).filter(Boolean) : PHRASES;
   const day = Math.floor(parseKey(k).getTime() / 86400000);
-  return `<section class="card phrase-card">✨ <p>${esc(list[day % list.length])}</p></section>`;
+  const [txt, author] = list[day % list.length].split(' — ');
+  return `<section class="card phrase-card">✨ <div><p>${esc(txt)}</p>${author ? `<small class="phrase-author">— ${esc(author)}</small>` : ''}</div></section>`;
 }
 
 const GROUPS = [
+  ['Checklist', '✅', (t) => !t.time],
   ['Manhã', '🌅', (t) => t.time && toMin(t.time) < 12 * 60],
   ['Tarde', '☀️', (t) => t.time && toMin(t.time) >= 12 * 60 && toMin(t.time) < 18 * 60],
   ['Noite', '🌙', (t) => t.time && toMin(t.time) >= 18 * 60],
-  ['Qualquer hora', '🕐', (t) => !t.time],
 ];
+const quickAdd = (k) => `<form class="quick-add" data-d="${k}"><input name="q" placeholder="+ Adicionar ao checklist de hoje" aria-label="Novo item do checklist" autocomplete="off"><button class="icon-btn sm" aria-label="Adicionar">+</button></form>`;
 
 function challengeCard(k) {
   const c = activeChallenge();
@@ -332,12 +343,13 @@ export function renderToday() {
   const f = ui.taskFilter;
   let shown = f ? tasks.filter((t) => taskStatus(t, k) === f) : tasks;
   if (H.hideDone && f !== 'done') shown = shown.filter((t) => !isDone(t, k));
-  const groups = !H.groupRoutine ? `<ul class="timeline">${shown.map((t) => taskRow(t, k, t.id === highlightId)).join('')}</ul>` : GROUPS.map(([label, icon, fn]) => {
+  const groups = !H.groupRoutine ? `${!f ? quickAdd(k) : ''}<ul class="timeline">${shown.map((t) => taskRow(t, k, t.id === highlightId)).join('')}</ul>` : GROUPS.map(([label, icon, fn]) => {
     const list = shown.filter(fn);
-    if (!list.length) return '';
+    const isCheck = label === 'Checklist';
+    if (!list.length && !(isCheck && !f)) return '';
     const d = list.filter((t) => isDone(t, k)).length;
-    return `<div class="tgroup"><div class="tg-head"><span>${icon} ${label}</span><small>${d}/${list.length}</small></div>
-      <ul class="timeline">${list.map((t) => taskRow(t, k, t.id === highlightId)).join('')}</ul></div>`;
+    return `<div class="tgroup ${isCheck ? 'tg-check' : ''}"><div class="tg-head"><span>${icon} ${label}</span><small>${list.length ? `${d}/${list.length}` : ''}</small></div>
+      ${list.length ? `<ul class="timeline">${list.map((t) => taskRow(t, k, t.id === highlightId)).join('')}</ul>` : ''}${isCheck && !f ? quickAdd(k) : ''}</div>`;
   }).join('');
   const blocks = {
     frase: phraseCard(k),
@@ -350,7 +362,7 @@ export function renderToday() {
     rotina: `<section class="card" id="rotina-card">
       <div class="card-head"><h2>Rotina do dia</h2><button class="link" data-act="addTask">+ Adicionar</button></div>
       ${H.showFilters ? `<div class="seg filter-seg">${[['', 'Todas'], ...Object.entries(FILTERS)].map(([key, l]) => `<button class="${(f || '') === key ? 'on' : ''}" data-act="taskFilter" data-f="${key}">${l}</button>`).join('')}</div>` : ''}
-      ${shown.length ? groups : f ? `<p class="muted center small">Nenhuma tarefa ${FILTERS[f].toLowerCase()} ${k === today ? 'hoje' : 'neste dia'} 💜</p>`
+      ${shown.length || !f ? groups : f ? `<p class="muted center small">Nenhuma tarefa ${FILTERS[f].toLowerCase()} ${k === today ? 'hoje' : 'neste dia'} 💜</p>`
         : tasks.length ? '<p class="muted center small">Tudo concluído por aqui 💜</p>' : empty('🌤️', 'Nada por aqui', 'Adicione tarefas para este dia.')}
     </section>`,
     desafio: challengeCard(k),
@@ -366,6 +378,14 @@ export function renderToday() {
 }
 
 /* ---------- ações ---------- */
+document.addEventListener('submit', (e) => {
+  const f = e.target.closest('.quick-add'); if (!f) return;
+  e.preventDefault();
+  const title = f.querySelector('[name=q]').value.trim(); if (!title) return;
+  state.oneOff.push({ id: uid(), date: f.dataset.d, time: '', end: '', title, icon: '✅', color: 'violet', type: 'normal' });
+  save(); toast('Adicionado ao checklist ✓'); rerender();
+  setTimeout(() => document.querySelector('.quick-add [name=q]')?.focus(), 50);
+});
 A.pickDay = (el) => { ui.date = el.dataset.d; rerender(); };
 A.taskFilter = (el) => {
   const f = el.dataset.f || null;

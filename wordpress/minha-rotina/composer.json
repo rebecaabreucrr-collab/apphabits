@@ -1,0 +1,10 @@
+{
+    "name": "minha-rotina/wordpress-plugin",
+    "description": "Dependências da IA das finanças (SDK oficial da Anthropic).",
+    "require": {
+        "php": ">=8.1",
+        "anthropic-ai/sdk": "^1.13",
+        "guzzlehttp/guzzle": "^7"
+    },
+    "config": { "optimize-autoloader": true }
+}

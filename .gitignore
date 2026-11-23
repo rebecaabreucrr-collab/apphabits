@@ -2,3 +2,5 @@
 wordpress/minha-rotina/includes/backup-inicial.php
 *.zip
 *backup*.json
+wordpress/minha-rotina/vendor/
+wordpress/minha-rotina/composer.lock

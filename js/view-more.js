@@ -38,6 +38,8 @@ function renderMore() {
   </section>
   <h3 class="sec-title">Organizar</h3>
   <section class="card menu">
+    ${item('#/financas', '👛', 'Finanças', 'Receitas, despesas, contas, limites e IA', 'violet')}
+    ${item('#/relatorio', '📊', 'Relatório', 'Quão produtiva fui na semana, no mês e no ano', 'pink')}
     ${item('#/ciclo', '🌸', 'Meu ciclo', 'Menstruação, período fértil e ovulação', 'pink')}
     ${item('#/estudo', '📚', 'Estudo', 'Cronômetro, matérias, onde parei e histórico', 'sky')}
     ${item('#/ingles', '💬', 'Inglês', 'Cronômetro, habilidades, onde parei e histórico', 'violet')}
@@ -101,7 +103,7 @@ A.setLayout = (el) => { state.settings.layout = el.dataset.l; save(); rerender()
 A.setTheme = (el) => { state.settings.theme = el.dataset.t; save(); rerender(); };
 
 /* ---------- Abas ---------- */
-const OPTIONAL_TABS = ['desafio', 'estudo', 'ingles', 'leitura', 'cuidados', 'ciclo', 'remedios', 'treinos', 'rotina'];
+const OPTIONAL_TABS = ['desafio', 'estudo', 'ingles', 'financas', 'relatorio', 'leitura', 'cuidados', 'ciclo', 'remedios', 'treinos', 'rotina'];
 function renderTabs() {
   const on = state.settings.tabs;
   const off = OPTIONAL_TABS.filter((id) => !on.some((t) => t.id === id));

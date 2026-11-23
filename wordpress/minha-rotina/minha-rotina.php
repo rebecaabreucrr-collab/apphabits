@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Minha Rotina
  * Description:       App de rotina, hábitos e autocuidado dentro do WordPress. Abra em /minha-rotina/ (somente usuárias logadas).
- * Version:           1.0.0
+ * Version:           1.1.0
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            Rebeca
@@ -12,12 +12,26 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'MR_VERSION', '1.0.0' );
+define( 'MR_VERSION', '1.1.0' );
 define( 'MR_DIR', plugin_dir_path( __FILE__ ) );
 define( 'MR_URL', plugin_dir_url( __FILE__ ) );
 define( 'MR_OPT_DATA', 'minha_rotina_backup' );
 define( 'MR_OPT_STAMP', 'minha_rotina_backup_stamp' );
 define( 'MR_OPT_ACCESS', 'minha_rotina_acesso' ); // 'admin' (padrão) ou 'logado'
+define( 'MR_OPT_AI_KEY', 'minha_rotina_ia_chave' );
+define( 'MR_OPT_AI_MODEL', 'minha_rotina_ia_modelo' );
+
+if ( PHP_VERSION_ID >= 80100 ) {
+	require_once MR_DIR . 'includes/ia-financas.php';
+} else {
+	// hospedagem com PHP antigo: o app funciona, só a IA fica desligada
+	function mr_ai_ready() {
+		return false;
+	}
+	function mr_ai_admin_section() {
+		echo '<h2>✨ Inteligência artificial (Finanças)</h2><div class="notice notice-warning inline"><p>A IA precisa de <strong>PHP 8.1 ou mais novo</strong>. Sua hospedagem está com PHP ' . esc_html( PHP_VERSION ) . '. Peça à hospedagem para atualizar; o resto do app funciona normalmente.</p></div>';
+	}
+}
 
 /* ------------------------------------------------------------------ */
 /* Endereço do app: /minha-rotina/ (ou ?minha_rotina_app=1 sem links permanentes) */
@@ -116,6 +130,13 @@ function mr_render_app() {
 			. '}catch(e){console.warn("Minha Rotina: backup não carregado",e);}})();</script>';
 	}
 
+	// o app usa isto para falar com a IA das finanças (a chave nunca vai para o navegador)
+	$head .= '<script>window.MR_WP=' . wp_json_encode( array(
+		'rest'  => esc_url_raw( rest_url( 'minha-rotina/v1/' ) ),
+		'nonce' => wp_create_nonce( 'wp_rest' ),
+		'ia'    => mr_ai_ready(),
+	) ) . ';</script>';
+
 	$html = preg_replace( '/<head>/', '<head>' . $head, $html, 1 );
 
 	nocache_headers();
@@ -165,6 +186,9 @@ function mr_admin_page() {
 		'removed' => array( 'success', 'Backup removido do WordPress.' ),
 		'invalid' => array( 'error', 'Arquivo inválido. Use o backup gerado em Mais → Backup → Salvar backup.' ),
 		'saved'   => array( 'success', 'Configuração salva.' ),
+		'ia_ok'   => array( 'success', 'IA configurada e funcionando! ✨' ),
+		'ia_salva'=> array( 'success', 'Configuração da IA salva.' ),
+		'ia_erro' => array( 'error', 'A IA não respondeu: ' . ( isset( $_GET['mr_err'] ) ? sanitize_text_field( wp_unslash( $_GET['mr_err'] ) ) : '' ) ), // phpcs:ignore
 	);
 	?>
 	<div class="wrap">
@@ -202,6 +226,8 @@ function mr_admin_page() {
 				<p><button class="button button-link-delete">Remover backup do WordPress</button></p>
 			</form>
 		<?php endif; ?>
+
+		<?php mr_ai_admin_section(); ?>
 
 		<h2>Quem pode abrir</h2>
 		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">

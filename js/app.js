@@ -4,6 +4,8 @@ import { $, dateKey, fmtTimer, esc, greeting } from './utils.js';
 import { iconize, svg } from './icons.js';
 import { TAB_DEFS } from './defaults.js';
 import { routes as meds } from './view-meds.js';
+import { routes as report } from './view-report.js';
+import { routes as finance } from './view-finance.js';
 import { routes as study, studyElapsed, englishElapsed } from './view-study.js';
 import { A, C, ui, setRender, closeSheet, toast } from './ui.js';
 import { timerElapsed } from './logic.js';
@@ -38,7 +40,7 @@ export async function logout() {
 if (redirect?.error) setTimeout(() => { ui.authMsg = { text: redirect.error }; render(); }, 0);
 if (redirect?.type === 'signup' || redirect?.type === 'magiclink') setTimeout(() => toast('E-mail confirmado! 💜'), 400);
 if (authEnabled() && isLoggedIn()) ensureFresh().catch(() => { if (!isLoggedIn()) render(); });
-const routes = { ...today, ...care, ...reading, ...challenge, ...more, ...cycle, ...meds, ...study };
+const routes = { ...today, ...care, ...reading, ...challenge, ...more, ...cycle, ...meds, ...study, ...report, ...finance };
 
 function tabIds() { return ['hoje', ...state.settings.tabs.map((t) => t.id), 'mais']; }
 function renderTabs() {

@@ -1,7 +1,7 @@
 // Estudo e Inglês: cronômetro, tema/assunto/fonte, onde parei, horários (manhã/noite) e histórico.
 // As duas abas usam o mesmo modelo (makeTrack), cada uma com seus próprios dados.
 import { state, save } from './store.js';
-import { esc, dateKey, fmtTimer, fmtMinutes, fmtShort, fmtLong, uid, pad, toMin, weekStart, WD } from './utils.js';
+import { esc, dateKey, fmtTimer, fmtMinutes, fmtShort, fmtLong, uid, pad, toMin, WD } from './utils.js';
 import { durationField, readDuration, timeRangeFields, rangeFromNow, bindTimeRange, fmtRange } from './forms.js';
 import { A, C, ui, sheet, rerender, toast, empty, confirmSheet } from './ui.js';
 import { setDone, isDone, tasksFor } from './logic.js';
@@ -81,8 +81,6 @@ function makeTrack(cfg) {
     const t = T(); const el = elapsed();
     const all = [...S().sessions].sort((a, b) => (b.date + (b.start || '')).localeCompare(a.date + (a.start || '')));
     const last = all[0];
-    const ws = weekStart(k);
-    const week = S().sessions.filter((x) => x.date >= ws).reduce((a, x) => a + (x.seconds || 0), 0);
     const groups = [...new Set(all.map((x) => x.materia).filter(Boolean))];
     const f = ui[P + 'Filter'] || '';
     const list = f ? all.filter((x) => x.materia === f) : all;
@@ -101,9 +99,8 @@ function makeTrack(cfg) {
       ${pre ? `<small class="st-pre">Retomando: <b>${esc(pre.materia)}${pre.assunto ? ' · ' + esc(pre.assunto) : ''}</b></small>` : ''}
       <div class="row gap mt">${btns}</div>
     </section>
-    <div class="stats three">
+    <div class="stats two">
       <div class="stat"><span>⏱️</span><b>${fmtMinutes(dayOf(cfg, k) / 60)}</b><small>hoje</small></div>
-      <div class="stat"><span>🗓️</span><b>${fmtMinutes(week / 60)}</b><small>esta semana</small></div>
       <div class="stat"><span>${cfg.icon}</span><b>${new Set(S().sessions.map((x) => x.date)).size}</b><small>dias praticados</small></div>
     </div>
     ${last ? `<section class="card resume-card"><div class="card-head"><h2>📌 Continuar de onde parei</h2><small>${fmtShort(last.date)}</small></div>${sessionCard(last)}</section>` : ''}
