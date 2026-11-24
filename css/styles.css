@@ -811,3 +811,8 @@ fieldset.rev.in { border-left-color: var(--c-violet); }
 .streak-line { display: block; margin-top: 4px; font-size: 12px; color: var(--muted); } .streak-line.lit { color: var(--c-rose); }
 .streak-pause { display: flex; padding-top: 12px; border-top: 1px solid var(--line); } .streak-pause b, .streak-pause small { display: block; }
 details summary { cursor: pointer; padding: 8px 0; }
+/* trocar treino só no dia */
+.wo-swap { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.wo-swap small { color: var(--muted); }
+.wo-pick li { cursor: pointer; } .wo-pick li.on { background: color-mix(in srgb, var(--c-rose) 10%, transparent); border-radius: 14px; }
+.sheet h4 { margin: 14px 0 6px; font-size: 14px; }

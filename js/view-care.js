@@ -1,7 +1,7 @@
 // Treino do dia, Skincare, Cronograma capilar e Produtos.
 import { state, save } from './store.js';
 import { esc, dateKey, fmtLong, fmtRel, fmtShort, WD_FULL, weekday, uid, diffDays, addDays } from './utils.js';
-import { A, C, ui, check, sheet, go, rerender, toast, empty, pageHead, bar, opt, confirmSheet } from './ui.js';
+import { A, C, ui, check, sheet, closeSheet, go, rerender, toast, empty, pageHead, bar, opt, confirmSheet } from './ui.js';
 import { workoutFor, workoutLog, markTypeDone, hairDay, ensureHairLog, washOn, postponeWash, nextWashes, hairStepsFor, setHairStart, nextScheduled, asList, skinActive,
   reconstructionsInMonth, skinLog, peekSkin, productUsage, product, productName, tasksFor, isDone } from './logic.js';
 import { MASKS, CATEGORIES, SKIN_EMOJIS, guessSkinIcon } from './defaults.js';
@@ -14,13 +14,14 @@ function renderWorkoutDay(p) {
   const k = q(p, 'd', dateKey());
   const w = workoutFor(k);
   const log = state.workoutLog[k] || { ex: {}, loads: {} };
-  const select = `<label class="field"><span>Treino deste dia</span><select data-change="swapWorkout" data-d="${k}">
-    ${opt('__plan', 'Usar o plano da semana', log.wid === undefined ? '__plan' : '')}
-    ${opt('', 'Descanso', log.wid === null ? '' : '__x')}
-    ${state.workouts.list.map((x) => opt(x.id, x.name, log.wid === x.id ? x.id : '__x')).join('')}</select></label>`;
+  const planned = state.workouts.list.find((x) => x.id === state.workouts.plan[weekday(k)]) || null;
+  const swapped = log.wid !== undefined && log.wid !== (planned?.id ?? null);
+  const swapBox = `<div class="wo-swap">${swapped ? `<small>Trocado só neste dia · no plano: <b>${esc(planned?.name || 'Descanso')}</b></small>` : '<small>Do plano da semana</small>'}
+    <div class="row gap"><button class="btn small" data-act="woSwapOpen" data-d="${k}">🔄 Trocar treino</button>
+    ${swapped ? `<button class="btn small ghost" data-act="woBack" data-d="${k}">Voltar ao plano</button>` : ''}</div></div>`;
   if (!w) return `${pageHead('Treino', '#/hoje')}<p class="sub">${fmtLong(k)}</p>
-    ${empty('😴', 'Dia de descanso', 'Não há treino no plano para este dia. Você pode escolher um treino abaixo.')}
-    <div class="card">${select}</div>`;
+    ${empty('😴', 'Dia de descanso', swapped ? 'Você trocou o treino deste dia por descanso.' : 'Não há treino no plano para este dia.')}
+    <div class="card">${swapBox}</div>`;
   const done = w.exercises.filter((e) => log.ex[e.id]).length;
   const allDone = tasksFor(k).filter((t) => t.type === 'treino').some((t) => isDone(t, k));
   return `${pageHead('Treino', '#/hoje', `<a class="link" href="#/treino-edit?id=${w.id}">Editar</a>`)}
@@ -29,13 +30,13 @@ function renderWorkoutDay(p) {
     <small>Treino de hoje</small><h2>${esc(w.name)}</h2>
     <span>${done}/${w.exercises.length} exercícios</span>${bar(done / (w.exercises.length || 1), 'light')}
   </section>
+  <div class="card">${swapBox}</div>
   <ul class="list">${w.exercises.map((e, i) => `<li class="ex ${log.ex[e.id] ? 'done' : ''}">
       ${check(!!log.ex[e.id], 'exToggle', `data-d="${k}" data-e="${e.id}"`, e.name)}
       <div class="grow"><b>${i + 1}. ${esc(e.name)}</b><small>${e.sets} × ${esc(e.reps)}${e.notes ? ' · ' + esc(e.notes) : ''}</small></div>
       <label class="load"><span>carga</span><input inputmode="decimal" placeholder="kg" value="${esc(log.loads[e.id] ?? e.load ?? '')}" data-change="exLoad" data-d="${k}" data-w="${w.id}" data-e="${e.id}"></label>
     </li>`).join('')}</ul>
-  <button class="btn ${allDone ? 'ghost' : 'success'} block" data-act="finishWorkout" data-d="${k}">${allDone ? '✓ Treino concluído (desfazer)' : '🏁 Concluir treino'}</button>
-  <div class="card">${select}</div>`;
+  <button class="btn ${allDone ? 'ghost' : 'success'} block" data-act="finishWorkout" data-d="${k}">${allDone ? '✓ Treino concluído (desfazer)' : '🏁 Concluir treino'}</button>`;
 }
 A.exToggle = (el) => {
   const l = workoutLog(el.dataset.d); l.ex[el.dataset.e] = !l.ex[el.dataset.e];
@@ -50,11 +51,34 @@ C.exLoad = (el) => {
   if (e) e.load = el.value.trim(); // a última carga vira o padrão
   save(); toast('Carga salva');
 };
-C.swapWorkout = (el) => {
-  const l = workoutLog(el.dataset.d);
-  if (el.value === '__plan') delete l.wid; else l.wid = el.value || null;
-  save(); rerender();
+/* trocar o treino de um dia sem mexer no plano da semana (fica guardado só no registro do dia) */
+const woName = (w) => (w ? w.name : 'Descanso');
+A.woSwapOpen = (el) => {
+  const k = el.dataset.d; const cur = workoutFor(k);
+  const days = Array.from({ length: 6 }, (_, i) => addDays(k, i + 1));
+  const wdName = (d) => { const n = WD_FULL[weekday(d)]; return n[0].toUpperCase() + n.slice(1); };
+  sheet('Trocar treino', `
+    <p class="small muted">Vale só para ${k === dateKey() ? 'hoje' : fmtShort(k)}. O plano da semana continua igual.</p>
+    <h4 class="mt">Fazer outro treino</h4>
+    <ul class="mini-list wo-pick">${state.workouts.list.map((w) => `<li class="${cur?.id === w.id ? 'on' : ''}" data-act="woPick" data-d="${k}" data-w="${w.id}">
+      <span class="t-icon bg-soft-${w.color || 'rose'}">🏋️‍♀️</span><div class="grow"><b>${esc(w.name)}</b><small>${w.exercises.length} exercícios</small></div>${cur?.id === w.id ? '<small>atual</small>' : ''}</li>`).join('')}
+      <li class="${!cur ? 'on' : ''}" data-act="woPick" data-d="${k}" data-w=""><span class="t-icon bg-soft-slate">😴</span><div class="grow"><b>Descanso</b><small>sem treino neste dia</small></div></li></ul>
+    <h4 class="mt">Ou inverter com outro dia</h4>
+    <p class="small muted">Faz o treino daquele dia agora e o de ${k === dateKey() ? 'hoje' : 'este dia'} fica para lá.</p>
+    <ul class="mini-list wo-pick">${days.map((d) => { const w = workoutFor(d); return `<li data-act="woSwapDay" data-d="${k}" data-o="${d}">
+      <div class="grow"><b>${wdName(d)} · ${fmtShort(d)}</b><small>${esc(woName(w))} ⇄ ${esc(woName(cur))}</small></div></li>`; }).join('')}</ul>`);
 };
+const setWid = (d, id) => {
+  const l = workoutLog(d); const planned = state.workouts.plan[weekday(d)] ?? null;
+  if ((id ?? null) === planned) delete l.wid; else l.wid = id ?? null;
+};
+A.woPick = (el) => { setWid(el.dataset.d, el.dataset.w || null); save(); closeSheet(); toast('Treino trocado só neste dia'); rerender(); };
+A.woSwapDay = (el) => {
+  const a = el.dataset.d, b = el.dataset.o; const wa = workoutFor(a)?.id ?? null, wb = workoutFor(b)?.id ?? null;
+  setWid(a, wb); setWid(b, wa); save(); closeSheet();
+  toast(`Trocado com ${fmtShort(b)} · o plano da semana continua igual`); rerender();
+};
+A.woBack = (el) => { setWid(el.dataset.d, state.workouts.plan[weekday(el.dataset.d)] ?? null); save(); toast('Voltou ao treino do plano'); rerender(); };
 A.finishWorkout = (el) => {
   const k = el.dataset.d;
   const done = tasksFor(k).filter((t) => t.type === 'treino').some((t) => isDone(t, k));
