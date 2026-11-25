@@ -2,7 +2,7 @@
 import { state, save } from './store.js';
 import { esc, dateKey, fmtLong, fmtRel, fmtShort, WD_FULL, weekday, uid, diffDays, addDays } from './utils.js';
 import { A, C, ui, check, sheet, closeSheet, go, rerender, toast, empty, pageHead, bar, opt, confirmSheet } from './ui.js';
-import { workoutFor, workoutLog, markTypeDone, hairDay, ensureHairLog, washOn, postponeWash, nextWashes, hairStepsFor, setHairStart, nextScheduled, asList, skinActive,
+import { workoutFor, workoutLog, plannedWorkoutId, markTypeDone, hairDay, ensureHairLog, washOn, postponeWash, nextWashes, hairStepsFor, setHairStart, nextScheduled, asList, skinActive,
   reconstructionsInMonth, skinLog, peekSkin, productUsage, product, productName, tasksFor, isDone } from './logic.js';
 import { MASKS, CATEGORIES, SKIN_EMOJIS, guessSkinIcon } from './defaults.js';
 import { productSheet, productOptions, emojiGrid } from './forms.js';
@@ -14,7 +14,7 @@ function renderWorkoutDay(p) {
   const k = q(p, 'd', dateKey());
   const w = workoutFor(k);
   const log = state.workoutLog[k] || { ex: {}, loads: {} };
-  const planned = state.workouts.list.find((x) => x.id === state.workouts.plan[weekday(k)]) || null;
+  const planned = state.workouts.list.find((x) => x.id === plannedWorkoutId(k)) || null;
   const swapped = log.wid !== undefined && log.wid !== (planned?.id ?? null);
   const swapBox = `<div class="wo-swap">${swapped ? `<small>Trocado só neste dia · no plano: <b>${esc(planned?.name || 'Descanso')}</b></small>` : '<small>Do plano da semana</small>'}
     <div class="row gap"><button class="btn small" data-act="woSwapOpen" data-d="${k}">🔄 Trocar treino</button>
@@ -69,7 +69,7 @@ A.woSwapOpen = (el) => {
       <div class="grow"><b>${wdName(d)} · ${fmtShort(d)}</b><small>${esc(woName(w))} ⇄ ${esc(woName(cur))}</small></div></li>`; }).join('')}</ul>`);
 };
 const setWid = (d, id) => {
-  const l = workoutLog(d); const planned = state.workouts.plan[weekday(d)] ?? null;
+  const l = workoutLog(d); const planned = plannedWorkoutId(d);
   if ((id ?? null) === planned) delete l.wid; else l.wid = id ?? null;
 };
 A.woPick = (el) => { setWid(el.dataset.d, el.dataset.w || null); save(); closeSheet(); toast('Treino trocado só neste dia'); rerender(); };
@@ -78,7 +78,7 @@ A.woSwapDay = (el) => {
   setWid(a, wb); setWid(b, wa); save(); closeSheet();
   toast(`Trocado com ${fmtShort(b)} · o plano da semana continua igual`); rerender();
 };
-A.woBack = (el) => { setWid(el.dataset.d, state.workouts.plan[weekday(el.dataset.d)] ?? null); save(); toast('Voltou ao treino do plano'); rerender(); };
+A.woBack = (el) => { setWid(el.dataset.d, plannedWorkoutId(el.dataset.d)); save(); toast('Voltou ao treino do plano'); rerender(); };
 A.finishWorkout = (el) => {
   const k = el.dataset.d;
   const done = tasksFor(k).filter((t) => t.type === 'treino').some((t) => isDone(t, k));

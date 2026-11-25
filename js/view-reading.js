@@ -20,6 +20,9 @@ function bookCardFn(x) {
 }
 const activeBook = () => state.books.find((b) => b.id === state.reading.activeBookId) || null;
 
+/* sub-abas da Leitura */
+const subnav = (on) => `<div class="seg">${[['leitura', 'Leitura'], ['caderno', 'Caderno'], ['livros', 'Livros']].map(([k, l]) => `<a class="${on === k ? 'on' : ''}" href="#/${k}">${l}</a>`).join('')}</div>`;
+
 function renderReading() {
   const k = dateKey();
   const t = T(); const el = timerElapsed();
@@ -35,6 +38,7 @@ function renderReading() {
   const finished = state.books.filter((x) => x.finished);
   const bookCard = bookCardFn;
   return `<header class="page-head top"><h1>Leitura</h1><div class="ph-right"><button class="link" data-act="bookNew">+ Livro</button></div></header>
+  ${subnav('leitura')}
   <section class="card timer-card bg-grad-orange ${t.running ? 'running' : ''}">
     <small>${t.running ? 'Lendo agora…' : el > 0 ? 'Pausado' : 'Cronômetro de leitura'}</small>
     <div class="timer" data-timer>${fmtTimer(el)}</div>
@@ -195,8 +199,9 @@ function notebook(b) {
       : '<p class="nb-empty">Suas anotações deste livro aparecem aqui, como num caderno. Escreva ao finalizar o cronômetro ou toque em "+ Anotação".</p>'}
   </section>`;
 }
-function noteSheet(b, n) {
+function noteSheet(b, n, { pick = false } = {}) {
   sheet(n ? 'Editar anotação' : 'Nova anotação', `<form class="form">
+    ${pick && state.books.length > 1 ? `<label class="field"><span>Livro</span><select name="book">${state.books.map((x) => opt(x.id, x.title, b.id)).join('')}</select></label>` : ''}
     <div class="row gap"><label class="field grow"><span>Data</span><input type="date" name="date" value="${n?.date || dateKey()}"></label>
     <label class="field grow"><span>Página</span><input type="number" inputmode="numeric" name="page" min="0" value="${n?.page || b.current || ''}"></label></div>
     <label class="field"><span>Anotação</span><textarea name="text" rows="6" required placeholder="Ideias, frases marcantes, resumo...">${esc(n?.text || '')}</textarea></label>
@@ -206,7 +211,8 @@ function noteSheet(b, n) {
     onSubmit: (fd) => {
       const data = { date: fd.get('date') || dateKey(), page: fd.get('page') || '', text: fd.get('text').trim() };
       if (!data.text) return false;
-      if (n) Object.assign(n, data); else (b.notes ||= []).push({ id: uid(), ...data });
+      const tb = state.books.find((x) => x.id === fd.get('book')) || b;
+      if (n) Object.assign(n, data); else (tb.notes ||= []).push({ id: uid(), ...data });
       save(); toast('Anotação salva');
     },
   });
@@ -219,7 +225,8 @@ function renderLibrary() {
   const list = state.books.filter((b) => f === 'todos' || (f === 'concluidos' ? b.finished : !b.finished))
     .sort((a, b) => (b.finished || b.created || '').localeCompare(a.finished || a.created || ''));
   const done = state.books.filter((b) => b.finished).length;
-  return `${pageHead('Meus livros', '#/leitura', '<button class="link" data-act="bookNew">+ Livro</button>')}
+  return `<header class="page-head top"><h1>Meus livros</h1><div class="ph-right"><button class="link" data-act="bookNew">+ Livro</button></div></header>
+  ${subnav('livros')}
   <div class="stats three">
     <div class="stat"><span>🏆</span><b>${done}</b><small>concluídos</small></div>
     <div class="stat"><span>📖</span><b>${state.books.length - done}</b><small>lendo</small></div>
@@ -228,6 +235,42 @@ function renderLibrary() {
   <div class="seg">${[['todos', 'Todos'], ['concluidos', 'Concluídos'], ['lendo', 'Lendo']].map(([k, l]) => `<button class="${f === k ? 'on' : ''}" data-act="libFilter" data-f="${k}">${l}</button>`).join('')}</div>
   ${list.length ? list.map(bookCardFn).join('') : empty('📚', 'Nenhum livro aqui', 'Os livros aparecem aqui conforme você cadastra e termina.')}`;
 }
+/* ---------- Caderno: todas as anotações de leitura num lugar ---------- */
+function allNotes() {
+  const title = (id) => state.books.find((b) => b.id === id)?.title || 'Livro';
+  return [
+    ...state.reading.sessions.filter((x) => x.notes).map((x) => ({ bookId: x.bookId, book: title(x.bookId), date: x.date, page: x.to ? `pág. ${x.from}–${x.to}` : '', text: x.notes, sid: x.id })),
+    ...state.books.flatMap((b) => (b.notes || []).map((n) => ({ bookId: b.id, book: b.title, date: n.date, page: n.page ? `pág. ${n.page}` : '', text: n.text, nid: n.id }))),
+  ].sort((x, y) => y.date.localeCompare(x.date));
+}
+function renderNotes() {
+  const all = allNotes();
+  const sel = state.books.some((b) => b.id === ui.nbBook) ? ui.nbBook : '';
+  const items = sel ? all.filter((n) => n.bookId === sel) : all;
+  const withNotes = state.books.filter((b) => all.some((n) => n.bookId === b.id));
+  return `<header class="page-head top"><h1>Caderno</h1><div class="ph-right"><button class="link" data-act="nbNew">+ Anotação</button></div></header>
+  ${subnav('caderno')}
+  ${withNotes.length > 1 ? `<div class="chips scroll"><button class="chip ${!sel ? 'on' : ''}" data-act="nbFilter" data-id="">Todos (${all.length})</button>
+    ${withNotes.map((b) => `<button class="chip ${sel === b.id ? 'on' : ''}" data-act="nbFilter" data-id="${b.id}">${esc(b.title)} (${all.filter((n) => n.bookId === b.id).length})</button>`).join('')}</div>` : ''}
+  <section class="notebook">
+    <div class="nb-head"><h2>📝 ${sel ? esc(state.books.find((b) => b.id === sel).title) : 'Todas as anotações'}</h2>${sel ? `<a class="link" href="#/livro?id=${sel}">Ver livro</a>` : ''}</div>
+    ${items.length ? items.map((n) => `<article class="nb-note" ${n.nid ? `data-act="noteEdit" data-id="${n.bookId}" data-n="${n.nid}"` : `data-act="sessionNoteEdit" data-id="${n.sid}"`}>
+      <small>${fmtShort(n.date)}${!sel ? ' · ' + esc(n.book) : ''}${n.page ? ' · ' + n.page : ''}</small><p>${esc(n.text).replace(/\n/g, '<br>')}</p></article>`).join('')
+      : `<p class="nb-empty">${state.books.length ? 'Nenhuma anotação ainda. Toque em "+ Anotação" ou escreva ao finalizar o cronômetro.' : 'Cadastre um livro para começar seu caderno.'}</p>`}
+  </section>`;
+}
+A.nbFilter = (el) => { ui.nbBook = el.dataset.id; rerender(); };
+A.nbNew = () => {
+  if (!state.books.length) { toast('Cadastre um livro primeiro'); return A.bookNew(); }
+  const b = state.books.find((x) => x.id === ui.nbBook) || activeBook() || state.books[0];
+  noteSheet(b, undefined, { pick: true });
+};
+A.sessionNoteEdit = (el) => {
+  const s = state.reading.sessions.find((x) => x.id === el.dataset.id); if (!s) return;
+  sheet('Editar anotação', `<form class="form"><label class="field"><span>Anotação (${fmtShort(s.date)})</span><textarea name="text" rows="6">${esc(s.notes || '')}</textarea></label>
+    <button class="btn primary block">Salvar</button></form>`, { onSubmit: (fd) => { s.notes = fd.get('text').trim(); save(); toast('Anotação salva'); } });
+};
+
 A.libFilter = (el) => { ui.libFilter = el.dataset.f; rerender(); };
 
 A.bookEdit = (el) => bookSheet(state.books.find((x) => x.id === el.dataset.id));
@@ -243,4 +286,5 @@ export const routes = {
   leitura: { render: renderReading, tab: 'leitura' },
   livro: { render: renderBook, tab: 'leitura' },
   livros: { render: renderLibrary, tab: 'leitura' },
+  caderno: { render: renderNotes, tab: 'leitura' },
 };

@@ -288,9 +288,16 @@ export const product = (id) => state.products.find((p) => p.id === id);
 export const productName = (id) => { const p = product(id); return p ? p.name + (p.brand ? ` · ${p.brand}` : '') : 'Produto não definido'; };
 
 /* ---------------- Treino ---------------- */
+/** dias da semana em que ela treina (os dias da tarefa "Academia" da rotina) */
+export function trainDays() {
+  const ts = state.routine.filter((r) => r.type === 'treino');
+  return ts.length ? [...new Set(ts.flatMap((r) => r.days))] : [0, 1, 2, 3, 4, 5, 6];
+}
+/** treino do plano para a data (dia sem treino = null) */
+export const plannedWorkoutId = (k) => (trainDays().includes(weekday(k)) ? state.workouts.plan[weekday(k)] ?? null : null);
 export function workoutFor(k) {
   const log = state.workoutLog[k];
-  const id = log?.wid !== undefined ? log.wid : state.workouts.plan[weekday(k)];
+  const id = log?.wid !== undefined ? log.wid : plannedWorkoutId(k);
   return state.workouts.list.find((w) => w.id === id) || null;
 }
 export function workoutLog(k) {

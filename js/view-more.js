@@ -9,6 +9,7 @@ import { authEnabled, isLoggedIn, currentUser, changePassword } from './auth.js'
 import { APP_VERSION } from './config.js';
 import { syncInfo, syncNow } from './sync.js';
 import { toMin } from './utils.js';
+import { trainDays } from './logic.js';
 
 const item = (href, icon, title, sub, color = 'rose') => `<a class="menu-item" href="${href}"><span class="t-icon bg-soft-${color}">${icon}</span>
   <div class="grow"><b>${title}</b><small>${sub}</small></div><span class="t-go">›</span></a>`;
@@ -224,17 +225,29 @@ A.routineNew = () => taskSheet(undefined, { defaultRepeat: 'routine' });
 
 /* ---------- Treinos ---------- */
 function renderWorkouts() {
-  const W = state.workouts;
+  const W = state.workouts; const td = trainDays();
   return `${pageHead('Treinos', '#/mais', '<button class="link" data-act="workoutNew">+ Treino</button>')}
-  <section class="card"><h2>Plano da semana</h2><p class="small muted">Escolha o treino fixo de cada dia. No dia, ele aparece no "Hoje".</p>
-    ${[1, 2, 3, 4, 5, 6, 0].map((d) => `<label class="plan-row"><span>${WD_FULL[d]}</span><select data-change="planSet" data-d="${d}">
-      ${opt('', 'Descanso 😴', W.plan[d] || '')}${W.list.map((w) => opt(w.id, w.name, W.plan[d] || '')).join('')}</select></label>`).join('')}
+  <section class="card"><h2>Dias que vou treinar</h2><p class="small muted">Marque os dias de academia. Nos outros dias, a Academia não aparece no "Hoje".</p>
+    <div class="chips mt">${[1, 2, 3, 4, 5, 6, 0].map((d) => `<label class="chip"><input type="checkbox" data-change="trainDay" data-d="${d}" ${td.includes(d) ? 'checked' : ''}><span>${WD[d]}</span></label>`).join('')}</div>
+    <small class="muted">${td.length} dia${td.length === 1 ? '' : 's'} por semana</small>
+  </section>
+  <section class="card"><h2>Plano da semana</h2><p class="small muted">Escolha o treino fixo de cada dia de academia. Para trocar só um dia, use "Trocar treino" no treino do dia.</p>
+    ${[1, 2, 3, 4, 5, 6, 0].map((d) => td.includes(d) ? `<label class="plan-row"><span>${WD_FULL[d]}</span><select data-change="planSet" data-d="${d}">
+      ${opt('', 'Descanso 😴', W.plan[d] || '')}${W.list.map((w) => opt(w.id, w.name, W.plan[d] || '')).join('')}</select></label>`
+      : `<div class="plan-row off"><span>${WD_FULL[d]}</span><small>sem academia</small></div>`).join('')}
   </section>
   <section><div class="card-head pad"><h2>Meus treinos</h2></div>
   ${W.list.map((w) => `<a class="card care-card" href="#/treino-edit?id=${w.id}"><span class="t-icon bg-soft-${w.color}">🏋️‍♀️</span>
     <div class="grow"><b>${esc(w.name)}</b><small>${w.exercises.length} exercícios · ${Object.entries(W.plan).filter(([, v]) => v === w.id).map(([d]) => WD[d]).join(', ') || 'fora do plano'}</small></div><span class="t-go">›</span></a>`).join('')}
   </section>`;
 }
+C.trainDay = (el) => {
+  const d = Number(el.dataset.d);
+  let ts = state.routine.filter((r) => r.type === 'treino');
+  if (!ts.length) { const t = { id: uid(), time: '06:10', title: 'Academia', icon: '🏋️‍♀️', color: 'rose', days: [0, 1, 2, 3, 4, 5, 6], type: 'treino' }; state.routine.push(t); ts = [t]; }
+  for (const t of ts) t.days = el.checked ? [...new Set([...t.days, d])].sort() : t.days.filter((x) => x !== d);
+  save(); toast(el.checked ? `${WD_FULL[d]}: dia de treino` : `${WD_FULL[d]}: sem academia`); rerender();
+};
 C.planSet = (el) => { state.workouts.plan[el.dataset.d] = el.value || null; save(); toast('Plano atualizado'); rerender(); };
 A.workoutNew = () => sheet('Novo treino', `<form class="form">
   <label class="field"><span>Nome</span><input name="name" required placeholder="Ex.: Quadríceps"></label>
