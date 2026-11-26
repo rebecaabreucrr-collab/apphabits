@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Minha Rotina
  * Description:       App de rotina, hábitos e autocuidado dentro do WordPress. Abra em /minha-rotina/ (somente usuárias logadas).
- * Version: 1.4.7
+ * Version: 1.4.8
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            Rebeca
@@ -12,7 +12,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'MR_VERSION', '1.4.7' );
+define( 'MR_VERSION', '1.4.8' );
 define( 'MR_DIR', plugin_dir_path( __FILE__ ) );
 define( 'MR_URL', plugin_dir_url( __FILE__ ) );
 define( 'MR_OPT_DATA', 'minha_rotina_backup' );

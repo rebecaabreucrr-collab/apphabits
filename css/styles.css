@@ -833,3 +833,4 @@ details summary { cursor: pointer; padding: 8px 0; }
 .who-metade { color: var(--c-sky); background: color-mix(in srgb, var(--c-sky) 15%, transparent); }
 .who-outro { color: var(--muted); background: color-mix(in srgb, var(--muted) 14%, transparent); }
 fieldset.rev:has(input[name=inc]:not(:checked)) { opacity: .55; }
+.head-links { display: flex; gap: 14px; align-items: center; }

@@ -365,7 +365,7 @@ export function renderToday() {
     agua: waterCard(k),
     cards: tiles(k),
     rotina: `<section class="card" id="rotina-card">
-      <div class="card-head"><h2>Rotina do dia</h2><button class="link" data-act="addTask">+ Adicionar</button></div>
+      <div class="card-head"><h2>Rotina do dia</h2><div class="head-links"><a class="link" href="#/rotina?de=hoje">Editar</a><button class="link" data-act="addTask">+ Adicionar</button></div></div>
       ${H.showFilters ? `<div class="seg filter-seg">${[['', 'Todas'], ...Object.entries(FILTERS)].map(([key, l]) => `<button class="${(f || '') === key ? 'on' : ''}" data-act="taskFilter" data-f="${key}">${l}</button>`).join('')}</div>` : ''}
       ${shown.length || !f ? groups : f ? `<p class="muted center small">Nenhuma tarefa ${FILTERS[f].toLowerCase()} ${k === today ? 'hoje' : 'neste dia'} 💜</p>`
         : tasks.length ? '<p class="muted center small">Tudo concluído por aqui 💜</p>' : empty('🌤️', 'Nada por aqui', 'Adicione tarefas para este dia.')}

@@ -204,11 +204,11 @@ A.homeReset = () => confirmSheet('Voltar ao padrão?', 'A tela inicial volta a t
 }, false);
 
 /* ---------- Rotina fixa ---------- */
-function renderRoutine() {
+function renderRoutine(p) {
   const sorted = [...state.routine].sort((a, b) => toMin(a.time) - toMin(b.time));
   const dayFilter = ui.routineFilter ?? -1;
   const list = dayFilter < 0 ? sorted : sorted.filter((r) => r.days.includes(dayFilter));
-  return `${pageHead('Rotina fixa', '#/mais', '<button class="link" data-act="routineNew">+ Tarefa</button>')}
+  return `${pageHead('Rotina fixa', p?.get?.('de') === 'hoje' ? '#/hoje' : '#/mais', '<button class="link" data-act="routineNew">+ Tarefa</button>')}
   <p class="sub">Essas tarefas aparecem automaticamente nos dias escolhidos. Toque para editar.</p>
   <div class="chips scroll">${[[-1, 'Todos'], ...[1, 2, 3, 4, 5, 6, 0].map((d) => [d, WD[d]])].map(([d, l]) =>
     `<button class="chip ${d === dayFilter ? 'on' : ''}" data-act="routineFilter" data-d="${d}">${l}</button>`).join('')}</div>
