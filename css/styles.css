@@ -849,7 +849,6 @@ fieldset.rev:has(input[name=inc]:not(:checked)) { opacity: .55; }
 .ag-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); cursor: pointer; }
 .ag-list .ag-item:first-child { border-top: 0; }
 .ag-item .ag-time { min-width: 62px; font-size: 13px; font-weight: 700; color: var(--accent); }
-.ag-item.google .ag-time { color: var(--c-sky); }
 .ag-item b { display: block; font-size: 15px; } .ag-item small { display: block; color: var(--muted); font-size: 12.5px; }
 .ag-item small svg { width: 12px; height: 12px; vertical-align: -1px; }
 .ag-tag { padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 700; color: var(--c-sky); background: color-mix(in srgb, var(--c-sky) 14%, transparent); white-space: nowrap; }
@@ -910,3 +909,10 @@ fieldset.rev:has(input[name=inc]:not(:checked)) { opacity: .55; }
 .lk-pack { list-style: none; padding: 0; margin: 10px 0 0; }
 .lk-pack li { display: flex; align-items: center; gap: 10px; padding: 6px 0; } .lk-pack li.on .grow { text-decoration: line-through; color: var(--muted); }
 .lk-tile .collage.mini { position: absolute; right: 12px; top: 12px; } .lk-tile { position: relative; }
+/* agenda: cor de cada agenda do Google */
+.ag-day i { display: flex; gap: 2px; justify-content: center; } .ag-day i em { width: 5px; height: 5px; border-radius: 50%; }
+.ag-day.sel i em { background: #fff !important; }
+.ag-item { border-left: 3px solid var(--cal, var(--accent)); padding-left: 10px; border-top-color: var(--line); }
+.ag-item .ag-time { color: var(--cal, var(--accent)); }
+.ag-item .ag-cal { font-size: 11.5px; }
+.ag-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; vertical-align: 0; }
