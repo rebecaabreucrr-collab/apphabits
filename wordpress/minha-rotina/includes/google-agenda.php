@@ -1,6 +1,6 @@
 <?php
 /**
- * Google Agenda pela API oficial: ver, criar, editar e apagar eventos das agendas escolhidas.
+ * Google Agenda pela API oficial, só para ver: as agendas escolhidas aparecem no app; mudanças são feitas no próprio Google Agenda.
  * A chave de acesso (refresh token) fica só no perfil da usuária no WordPress; o navegador nunca a recebe.
  */
 defined( 'ABSPATH' ) || exit;
@@ -41,7 +41,7 @@ add_action( 'template_redirect', function () {
 			'client_id'     => rawurlencode( get_option( MR_OPT_GCLIENT ) ),
 			'redirect_uri'  => rawurlencode( mr_g_redirect_uri() ),
 			'response_type' => 'code',
-			'scope'         => rawurlencode( 'https://www.googleapis.com/auth/calendar' ),
+			'scope'         => rawurlencode( 'https://www.googleapis.com/auth/calendar.readonly' ), // só leitura
 			'access_type'   => 'offline',
 			'prompt'        => 'consent',
 			'state'         => $state,
@@ -149,6 +149,8 @@ function mr_g_calendars( $force = false ) {
 				'primary' => ! empty( $c['primary'] ),
 			);
 		}, $r['items'] ?? array() );
+		// os aniversários do Google ficam dentro da agenda principal: viram uma agenda própria no app
+		$list[] = array( 'id' => '__aniversarios', 'name' => 'Aniversários', 'color' => '#60a5fa', 'write' => false, 'primary' => false, 'virtual' => true );
 		set_transient( 'mr_gcals_' . $uid, $list, 30 * MINUTE_IN_SECONDS );
 	}
 	return $list;
@@ -157,19 +159,6 @@ function mr_g_selected() {
 	$s = get_user_meta( get_current_user_id(), 'minha_rotina_gsel', true );
 	return is_array( $s ) ? $s : array();
 }
-function mr_g_cal_ok( $id, $need_write = false ) {
-	$cals = mr_g_calendars();
-	if ( is_wp_error( $cals ) || ! in_array( $id, mr_g_selected(), true ) ) {
-		return false;
-	}
-	foreach ( $cals as $c ) {
-		if ( $c['id'] === $id ) {
-			return $need_write ? $c['write'] : true;
-		}
-	}
-	return false;
-}
-
 /* ---------- rotas para o app ---------- */
 add_action( 'rest_api_init', function () {
 	$ns = 'minha-rotina/v1';
@@ -179,11 +168,7 @@ add_action( 'rest_api_init', function () {
 		array( 'methods' => 'GET', 'callback' => 'mr_g_cals_get', 'permission_callback' => $p ),
 		array( 'methods' => 'POST', 'callback' => 'mr_g_cals_set', 'permission_callback' => $p ),
 	) );
-	register_rest_route( $ns, '/google/eventos', array(
-		array( 'methods' => 'GET', 'callback' => 'mr_g_events', 'permission_callback' => $p ),
-		array( 'methods' => 'POST', 'callback' => 'mr_g_event_save', 'permission_callback' => $p ),
-		array( 'methods' => 'DELETE', 'callback' => 'mr_g_event_del', 'permission_callback' => $p ),
-	) );
+	register_rest_route( $ns, '/google/eventos', array( 'methods' => 'GET', 'callback' => 'mr_g_events', 'permission_callback' => $p ) );
 	register_rest_route( $ns, '/google/desconectar', array( 'methods' => 'POST', 'callback' => 'mr_g_disconnect', 'permission_callback' => $p ) );
 } );
 
@@ -224,8 +209,9 @@ function mr_g_events( WP_REST_Request $req ) {
 	if ( is_wp_error( $cals ) ) {
 		return mr_g_err( $cals );
 	}
-	$sel = mr_g_selected();
-	$out = array();
+	$sel  = mr_g_selected();
+	$bday = in_array( '__aniversarios', $sel, true );
+	$out  = array();
 	try {
 		$zone = new DateTimeZone( $tz );
 	} catch ( Exception $e ) {
@@ -234,7 +220,11 @@ function mr_g_events( WP_REST_Request $req ) {
 	$tmin = ( new DateTime( $start . ' 00:00:00', $zone ) )->format( DATE_RFC3339 );
 	$tmax = ( new DateTime( $end . ' 23:59:59', $zone ) )->format( DATE_RFC3339 );
 	foreach ( $cals as $c ) {
-		if ( ! in_array( $c['id'], $sel, true ) ) {
+		if ( ! empty( $c['virtual'] ) ) {
+			continue;
+		}
+		$on = in_array( $c['id'], $sel, true );
+		if ( ! $on && ! ( $bday && $c['primary'] ) ) {
 			continue;
 		}
 		$r = mr_g_api( 'GET', '/calendars/' . rawurlencode( $c['id'] ) . '/events', array(
@@ -247,6 +237,11 @@ function mr_g_events( WP_REST_Request $req ) {
 			if ( ( $e['status'] ?? '' ) === 'cancelled' ) {
 				continue;
 			}
+			$is_bday = ( $e['eventType'] ?? '' ) === 'birthday';
+			if ( $is_bday ? ! $bday : ! $on ) {
+				continue;
+			}
+			$cal = $is_bday ? array( 'id' => '__aniversarios', 'name' => 'Aniversários', 'color' => '#60a5fa' ) : $c;
 			$all = isset( $e['start']['date'] );
 			if ( $all ) {
 				$sd = $e['start']['date'];
@@ -264,69 +259,13 @@ function mr_g_events( WP_REST_Request $req ) {
 				$t2 = $f->format( 'H:i' );
 			}
 			$out[] = array(
-				'id' => $e['id'], 'cal' => $c['id'], 'calName' => $c['name'], 'color' => $c['color'], 'edit' => $c['write'] && ( $e['eventType'] ?? 'default' ) === 'default',
+				'id' => $e['id'], 'cal' => $cal['id'], 'calName' => $cal['name'], 'color' => $cal['color'], 'link' => $e['htmlLink'] ?? '',
 				'title' => $e['summary'] ?? '(sem título)', 'date' => $sd, 'endDate' => $ed, 'time' => $t1, 'end' => $t2, 'allDay' => $all,
 				'location' => $e['location'] ?? '', 'notes' => wp_strip_all_tags( $e['description'] ?? '' ), 'recurring' => ! empty( $e['recurringEventId'] ),
 			);
 		}
 	}
 	return new WP_REST_Response( array( 'events' => $out, 'at' => (int) round( microtime( true ) * 1000 ) ), 200 );
-}
-function mr_g_event_save( WP_REST_Request $req ) {
-	$p   = $req->get_json_params();
-	$cal = (string) ( $p['cal'] ?? '' );
-	if ( ! mr_g_cal_ok( $cal, true ) ) {
-		return mr_g_err( 'Essa agenda não pode ser alterada pelo app.', 403 );
-	}
-	$date = mr_g_date( $p['date'] ?? '' );
-	$tz   = preg_match( '#^[A-Za-z_]+(/[A-Za-z_+-]+){0,2}$#', (string) ( $p['tz'] ?? '' ) ) ? $p['tz'] : 'America/Sao_Paulo';
-	$title = sanitize_text_field( $p['title'] ?? '' );
-	if ( ! $date || '' === $title ) {
-		return mr_g_err( 'Preencha o nome e a data.', 400 );
-	}
-	$hm = function ( $v ) { return preg_match( '/^\d{2}:\d{2}$/', (string) $v ) ? $v : ''; };
-	$t1 = $hm( $p['time'] ?? '' );
-	$t2 = $hm( $p['end'] ?? '' );
-	$ev = array(
-		'summary'     => $title,
-		'location'    => sanitize_text_field( $p['location'] ?? '' ),
-		'description' => sanitize_textarea_field( $p['notes'] ?? '' ),
-	);
-	if ( ! empty( $p['allDay'] ) || ! $t1 ) {
-		$ev['start'] = array( 'date' => $date );
-		$ev['end']   = array( 'date' => gmdate( 'Y-m-d', strtotime( $date . ' +1 day' ) ) );
-	} else {
-		if ( ! $t2 || $t2 <= $t1 ) {
-			$t2 = gmdate( 'H:i', min( strtotime( "$date $t1 +1 hour" ), strtotime( "$date 23:59" ) ) );
-		}
-		$ev['start'] = array( 'dateTime' => "{$date}T{$t1}:00", 'timeZone' => $tz );
-		$ev['end']   = array( 'dateTime' => "{$date}T{$t2}:00", 'timeZone' => $tz );
-	}
-	$id = (string) ( $p['id'] ?? '' );
-	if ( $id ) {
-		// ao editar, limpa o outro formato (dia todo <-> com horário)
-		foreach ( array( 'start', 'end' ) as $k ) {
-			if ( isset( $ev[ $k ]['date'] ) ) {
-				$ev[ $k ]['dateTime'] = null;
-				$ev[ $k ]['timeZone'] = null;
-			} else {
-				$ev[ $k ]['date'] = null;
-			}
-		}
-	}
-	$r  = $id
-		? mr_g_api( 'PATCH', '/calendars/' . rawurlencode( $cal ) . '/events/' . rawurlencode( $id ), array(), $ev )
-		: mr_g_api( 'POST', '/calendars/' . rawurlencode( $cal ) . '/events', array(), $ev );
-	return is_wp_error( $r ) ? mr_g_err( $r ) : new WP_REST_Response( array( 'ok' => true, 'id' => $r['id'] ?? $id ), 200 );
-}
-function mr_g_event_del( WP_REST_Request $req ) {
-	$cal = (string) $req->get_param( 'cal' );
-	$id  = (string) $req->get_param( 'id' );
-	if ( ! $id || ! mr_g_cal_ok( $cal, true ) ) {
-		return mr_g_err( 'Esse evento não pode ser apagado pelo app.', 403 );
-	}
-	$r = mr_g_api( 'DELETE', '/calendars/' . rawurlencode( $cal ) . '/events/' . rawurlencode( $id ) );
-	return is_wp_error( $r ) ? mr_g_err( $r ) : new WP_REST_Response( array( 'ok' => true ), 200 );
 }
 function mr_g_disconnect() {
 	$uid = get_current_user_id();
@@ -363,7 +302,7 @@ function mr_google_admin_section() {
 	$has = (bool) get_option( MR_OPT_GSECRET );
 	?>
 	<h2 id="google">📅 Google Agenda</h2>
-	<p>Para ver, criar e editar eventos da sua Google Agenda pelo app, crie uma ligação gratuita no Google (uma vez só):</p>
+	<p>Para ver a sua Google Agenda dentro do app (só visualização — mudanças continuam sendo feitas no Google Agenda), crie uma ligação gratuita no Google (uma vez só):</p>
 	<ol>
 		<li>Entre em <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">console.cloud.google.com</a> com a sua conta Google e crie um projeto (ex.: “Minha Rotina”).</li>
 		<li>Em <b>APIs e serviços → Biblioteca</b>, procure <b>Google Calendar API</b> e clique em <b>Ativar</b>.</li>

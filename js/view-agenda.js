@@ -1,9 +1,9 @@
 // Agenda: mostra só as agendas do Google escolhidas (ex.: Pessoal, Rotina, Aniversários) e permite
 // criar, editar e apagar eventos nelas pelo app (API do Google Agenda, pelo plugin do WordPress).
 // Sem o WordPress/Google conectado, guarda compromissos só no app.
-import { state, save } from './store.js';
-import { esc, dateKey, addDays, parseKey, fmtLong, fmtShort, uid, pad, WD, MONTHS } from './utils.js';
-import { A, C, ui, sheet, rerender, toast, confirmSheet, closeSheet, opt } from './ui.js';
+import { state } from './store.js';
+import { esc, dateKey, addDays, parseKey, fmtLong, fmtShort, pad, MONTHS } from './utils.js';
+import { A, C, ui, sheet, rerender, toast, confirmSheet } from './ui.js';
 
 const AG = () => (state.agenda ||= { items: [] });
 const W = () => window.MR_WP || null;
@@ -20,7 +20,6 @@ const gsave = () => { try { localStorage.setItem(GKEY, JSON.stringify(G)); } cat
 let busy = false;
 const linked = () => wpOn() && G.status?.connected;
 const selCals = () => (G.calendars || []).filter((c) => (G.status?.selected || []).includes(c.id));
-const writable = () => selCals().filter((c) => c.write);
 
 async function gapi(method, path, { body, query = '' } = {}) {
   const res = await fetch(W().rest + 'google' + path + query, {
@@ -96,7 +95,7 @@ function monthGrid(month, sel) {
     const xs = by[k] || []; const out = !k.startsWith(month);
     cells += `<div class="agm-day ${out ? 'out' : ''} ${k === sel ? 'sel' : ''} ${k === today ? 'today' : ''}" data-act="agPick" data-d="${k}" role="button" tabindex="0">
       <b class="agm-n">${Number(k.slice(8))}</b>
-      ${xs.slice(0, MAX).map((x) => `<button class="agm-ev ${x.allDay ? 'all' : ''}" style="--cal:${x.color || 'var(--accent)'}" data-act="agOpen" data-src="${x.src}" data-id="${esc(x.id)}" data-cal="${esc(x.cal || '')}" data-d="${x.date}" title="${esc(`${when(x)} ${x.title}`)}">${x.allDay ? '' : `<span class="agm-t">${esc(x.time)}</span> `}${esc(x.title)}</button>`).join('')}
+      ${xs.slice(0, MAX).map((x) => `<button class="agm-ev ${x.allDay ? 'all' : ''}" style="--cal:${x.color || 'var(--accent)'}" data-act="agOpen" data-src="${x.src}" data-id="${esc(x.id)}" data-cal="${esc(x.cal || '')}" data-d="${x.date}" title="${esc(`${when(x)} ${x.title}`)}">${x.allDay ? '' : `<span class="agm-t">${esc(x.time)}</span> `}<span class="agm-x">${esc(x.title)}</span></button>`).join('')}
       ${xs.length > MAX ? `<small class="agm-more">+${xs.length - MAX}</small>` : ''}</div>`;
   }
   return `<div class="agm"><div class="agm-wd">${['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map((w) => `<small>${w}</small>`).join('')}</div><div class="agm-grid">${cells}</div></div>`;
@@ -108,7 +107,7 @@ function itemRow(x) {
 }
 /** lista lateral: Minhas agendas (posso editar) e Outras agendas (só leitura), com a cor de cada uma */
 function googleCard() {
-  if (!wpOn()) return `<section class="card ag-side"><h2>Google Agenda</h2><p class="small muted">Para usar a sua Google Agenda aqui, abra o app pelo endereço do WordPress (seusite/minha-rotina/). Por enquanto, os compromissos ficam só no app.</p></section>`;
+  if (!wpOn()) return `<section class="card ag-side"><h2>Google Agenda</h2><p class="small muted">A agenda vem da sua Google Agenda. Para ver aqui, abra o app pelo endereço do WordPress (seusite/minha-rotina/) — no celular também, e adicione à Tela de Início por esse endereço.</p></section>`;
   const st = G.status;
   if (!st) return `<section class="card ag-side"><p class="small muted">Verificando a Google Agenda…</p></section>`;
   if (!st.configured) return `<section class="card ag-side"><h2>Google Agenda</h2><p class="small muted">Falta configurar a ligação com o Google no painel do WordPress: <b>Minha Rotina → Google Agenda</b> (tem o passo a passo lá). Depois volte aqui e toque em Conectar.</p></section>`;
@@ -124,15 +123,9 @@ function googleCard() {
     ${other.length ? `<h4>Outras agendas</h4>${other.map(row).join('')}` : ''}
     ${G.error ? `<p class="small err">${esc(G.error)}</p>` : ''}
     <details class="ag-conn"><summary>Conexão com o Google</summary>
-      <p class="small muted">Conectada.${G.at ? ` Atualizado às ${pad(new Date(G.at).getHours())}:${pad(new Date(G.at).getMinutes())}.` : ''} Só as agendas marcadas aparecem no app.</p>
+      <p class="small muted">Conectada (só visualização).${G.at ? ` Atualizado às ${pad(new Date(G.at).getHours())}:${pad(new Date(G.at).getMinutes())}.` : ''} Só as agendas marcadas aparecem no app. Para criar ou mudar compromissos, use o Google Agenda — o app atualiza sozinho.</p>
       <div class="row gap wrap"><button class="btn small" data-act="agRefresh">🔄 Atualizar</button><button class="btn small ghost" data-act="agDisconnect">Desconectar</button></div></details>
   </section>`;
-}
-function oldItemsCard() {
-  const n = AG().items.length; if (!linked() || !n || !writable().length) return '';
-  return `<section class="card"><h2>Compromissos antigos do app</h2><p class="small muted">${n} compromisso(s) que você criou antes de conectar o Google. Quer mandar para a sua agenda?</p>
-    <div class="row gap"><select class="mini-select" id="ag-move-cal">${writable().map((c) => opt(c.id, c.name, '')).join('')}</select>
-      <button class="btn small" data-act="agMoveOld">Enviar para o Google</button><button class="btn small ghost" data-act="agDropOld">Apagar</button></div></section>`;
 }
 function renderAgenda(p) {
   const g = p?.get?.('g');
@@ -143,10 +136,9 @@ function renderAgenda(p) {
   const month = ui.agMonth || sel.slice(0, 7);
   const mDate = parseKey(month + '-01');
   const dayEvs = eventsBetween(sel, sel);
-  const canAdd = !wpOn() || !G.status?.connected || writable().length;
   const needPick = linked() && !selCals().length;
-  return `<header class="page-head top"><h1>Agenda</h1><div class="ph-right">${canAdd && !needPick ? '<button class="link" data-act="agNew">+ Evento</button>' : ''}</div></header>
-  ${needPick ? '<section class="card"><b>Escolha quais agendas do Google aparecem aqui</b><p class="small muted">Na lista de agendas, marque por exemplo Compromissos pessoais, Rotina e Aniversários.</p></section>' : ''}
+  return `<header class="page-head top"><h1>Agenda</h1></header>
+  ${needPick ? '<section class="card"><b>Escolha quais agendas do Google aparecem aqui</b><p class="small muted">Na lista de agendas, marque Compromissos pessoais, Rotina e Aniversários.</p></section>' : ''}
   <div class="ag-wrap">
     <div class="ag-main">
       <div class="agm-head"><button class="icon-btn" data-act="agMonth" data-n="-1" aria-label="Mês anterior">‹</button>
@@ -156,10 +148,9 @@ function renderAgenda(p) {
       ${monthGrid(month, sel)}
     </div>
     <aside class="ag-aside">
-      <section class="card ag-daycard"><div class="card-head"><h2>${sel === today ? 'Hoje' : fmtLong(sel)}</h2>${canAdd && !needPick ? `<button class="link" data-act="agNew" data-d="${sel}">+ Adicionar</button>` : ''}</div>
+      <section class="card ag-daycard"><div class="card-head"><h2>${sel === today ? 'Hoje' : fmtLong(sel)}</h2></div>
         ${dayEvs.length ? `<ul class="ag-list">${dayEvs.map(itemRow).join('')}</ul>` : '<p class="muted small">Nada neste dia.</p>'}</section>
       ${googleCard()}
-      ${oldItemsCard()}
     </aside>
   </div>`;
 }
@@ -181,70 +172,18 @@ A.agDisconnect = () => confirmSheet('Desconectar do Google?', 'Os eventos do Goo
   try { await gapi('POST', '/desconectar'); G = { status: { ...G.status, connected: false } }; gsave(); toast('Google Agenda desconectada'); } catch (err) { toast(err.message); }
   rerender();
 });
-A.agMoveOld = async () => {
-  const cal = document.getElementById('ag-move-cal')?.value; if (!cal) return;
-  toast('Enviando…'); let ok = 0;
-  for (const x of [...AG().items]) {
-    try { await gapi('POST', '/eventos', { body: { cal, title: x.title, date: x.date, time: x.time, end: x.end, allDay: x.allDay, location: x.location, notes: x.notes, tz: TZ() } }); AG().items = AG().items.filter((y) => y !== x); ok++; }
-    catch (err) { toast(err.message); break; }
-  }
-  save(); await gRefresh({ force: true, s: G.range?.s, e: G.range?.e }); toast(`${ok} compromisso(s) enviados para o Google ✓`);
-};
-A.agDropOld = () => confirmSheet('Apagar compromissos antigos?', 'Eles só existem no app (não estão no Google).', 'Apagar', () => { AG().items = []; save(); });
-
-function eventSheet(x, date) {
-  const google = linked();
-  const it = x || { title: '', date: date || ui.agDay || dateKey(), time: '', end: '', allDay: false, location: '', notes: '', cal: writable()[0]?.id };
-  const canEdit = !google || !x || x.edit;
-  if (google && x && !canEdit) {
-    return sheet(x.title, `<p class="muted">${fmtLong(x.date)} · ${esc(when(x))}</p>${x.location ? `<p>📍 ${esc(x.location)}</p>` : ''}${x.notes ? `<p class="note">${esc(x.notes).replace(/\n/g, '<br>')}</p>` : ''}
-      <p class="small muted">${esc(x.calName || '')} é só leitura${/anivers|birthday|contact/i.test(x.cal + x.calName) ? ' (os aniversários vêm dos seus Contatos do Google — mude por lá)' : ''}.</p>`);
-  }
-  sheet(x ? 'Editar evento' : 'Novo evento', `<form class="form">
-    <label class="field"><span>O que é</span><input name="title" required value="${esc(it.title)}" placeholder="Ex.: Dentista, aniversário da Ana"></label>
-    ${google ? `<label class="field"><span>Agenda</span><select name="cal" ${x ? 'disabled' : ''}>${writable().map((c) => opt(c.id, c.name, it.cal)).join('')}</select></label>` : ''}
-    <label class="field"><span>Data</span><input type="date" name="date" required value="${it.date}"></label>
-    <label class="toggle-row"><span><b>Dia todo</b></span><input type="checkbox" class="switch" name="allDay" ${it.allDay ? 'checked' : ''}></label>
-    <div class="row gap ag-times"><label class="field grow"><span>Começa</span><input type="time" name="time" value="${it.time || ''}"></label>
-      <label class="field grow"><span>Termina</span><input type="time" name="end" value="${it.end || ''}"></label></div>
-    <label class="field"><span>Local (opcional)</span><input name="location" value="${esc(it.location || '')}"></label>
-    <label class="field"><span>Observação (opcional)</span><textarea name="notes" rows="2">${esc(it.notes || '')}</textarea></label>
-    ${x?.recurring ? '<p class="small muted">Este evento se repete: a mudança vale só para este dia.</p>' : ''}
-    <button class="btn primary block">Salvar</button>
-    ${x ? '<button type="button" class="btn danger-ghost block" id="ag-del">Apagar evento</button>' : ''}</form>`, {
-    onMount: (root) => {
-      const ad = root.querySelector('[name=allDay]'); const tm = root.querySelector('.ag-times');
-      const sync = () => { tm.style.display = ad.checked ? 'none' : ''; }; ad.addEventListener('change', sync); sync();
-      root.querySelector('#ag-del')?.addEventListener('click', () => confirmSheet('Apagar evento?', google ? 'Ele também será apagado da sua Google Agenda.' : '', 'Apagar', async () => {
-        if (google) {
-          try { await gapi('DELETE', '/eventos', { query: `?cal=${encodeURIComponent(x.cal)}&id=${encodeURIComponent(x.id)}` }); G.events = G.events.filter((y) => !(y.id === x.id && y.cal === x.cal)); gsave(); toast('Evento apagado'); }
-          catch (err) { toast(err.message); }
-          rerender();
-        } else { AG().items = AG().items.filter((y) => y.id !== x.id); save(); toast('Compromisso apagado'); }
-      }));
-    },
-    onSubmit: (fd, form) => {
-      const data = { title: String(fd.get('title')).trim(), date: fd.get('date'), allDay: !!fd.get('allDay'), time: fd.get('allDay') ? '' : fd.get('time') || '',
-        end: fd.get('allDay') ? '' : fd.get('end') || '', location: String(fd.get('location') || '').trim(), notes: String(fd.get('notes') || '').trim() };
-      if (!data.title || !data.date) return false;
-      ui.agDay = data.date; ui.agMonth = null;
-      if (!google) {
-        if (x) Object.assign(AG().items.find((y) => y.id === x.id) || {}, data); else AG().items.push({ id: uid(), ...data });
-        save(); toast('Compromisso salvo 📅'); return undefined;
-      }
-      const btn = form.querySelector('button.primary'); btn.disabled = true; btn.textContent = 'Salvando no Google…';
-      const cal = x ? x.cal : fd.get('cal');
-      gapi('POST', '/eventos', { body: { ...data, cal, id: x?.id || '', tz: TZ() } })
-        .then(async () => { closeSheet(); toast('Salvo na Google Agenda ✓'); await gRefresh({ force: true, s: G.range?.s, e: G.range?.e }); })
-        .catch((err) => { btn.disabled = false; btn.textContent = 'Salvar'; toast(err.message); });
-      return false; // fecha só depois que o Google confirmar
-    },
-  });
+/** detalhes do compromisso (só visualização: mudanças são feitas no Google Agenda) */
+function eventSheet(x) {
+  const [y, m, d] = x.date.split('-');
+  const gl = x.link || `https://calendar.google.com/calendar/r/day/${y}/${Number(m)}/${Number(d)}`;
+  sheet(x.title, `<p class="muted">${fmtLong(x.date)} · ${esc(when(x))}</p>
+    ${x.calName ? `<p class="ag-calname"><i class="ag-dot" style="background:${x.color || 'var(--accent)'}"></i>${esc(x.calName)}</p>` : ''}
+    ${x.location ? `<p>📍 ${esc(x.location)}</p>` : ''}${x.notes ? `<p class="note">${esc(x.notes).replace(/\n/g, '<br>')}</p>` : ''}
+    ${x.src === 'google' ? `<p class="small muted">Para mudar ou apagar, use o Google Agenda.</p><a class="btn primary block" href="${esc(gl)}" target="_blank" rel="noopener">Abrir no Google Agenda</a>` : ''}`);
 }
-A.agNew = (el) => { if (linked() && !writable().length) return toast('Marque uma agenda em que você pode escrever'); eventSheet(null, el?.dataset?.d); };
 A.agOpen = (el) => {
-  if (el.dataset.src === 'meu') return eventSheet(AG().items.find((x) => x.id === el.dataset.id) ? { ...AG().items.find((x) => x.id === el.dataset.id) } : null);
-  const x = (G.events || []).find((y) => y.id === el.dataset.id && y.cal === el.dataset.cal); if (x) eventSheet(x);
+  const x = el.dataset.src === 'meu' ? AG().items.find((y) => y.id === el.dataset.id) : (G.events || []).find((y) => y.id === el.dataset.id && y.cal === el.dataset.cal);
+  if (x) eventSheet({ ...x, src: el.dataset.src, date: el.dataset.d || x.date });
 };
 
 /** tile da tela inicial: próximo compromisso */
