@@ -818,3 +818,9 @@ details summary { cursor: pointer; padding: 8px 0; }
 .sheet h4 { margin: 14px 0 6px; font-size: 14px; }
 .plan-row.off { display: flex; justify-content: space-between; align-items: center; opacity: .55; }
 .plan-row.off small { text-transform: none; color: var(--muted); }
+/* sono: classificação automática pela meta */
+.sl-tag { display: inline-block; padding: 2px 9px; border-radius: 99px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.sl-ok { color: var(--c-violet); background: color-mix(in srgb, var(--c-violet) 15%, transparent); }
+.sl-low { color: var(--c-rose); background: color-mix(in srgb, var(--c-rose) 15%, transparent); }
+.sl-high { color: var(--c-sky); background: color-mix(in srgb, var(--c-sky) 15%, transparent); }
+.sl-prev { margin: 4px 0 10px; font-size: 14px; color: var(--muted); min-height: 1.2em; }
