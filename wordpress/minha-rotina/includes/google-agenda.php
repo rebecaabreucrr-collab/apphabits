@@ -220,7 +220,7 @@ add_action( 'template_redirect', function () {
 			'client_id'     => rawurlencode( get_option( MR_OPT_GCLIENT ) ),
 			'redirect_uri'  => rawurlencode( mr_g_redirect_uri() ),
 			'response_type' => 'code',
-			'scope'         => rawurlencode( 'https://www.googleapis.com/auth/calendar.readonly' ), // o app só mostra a agenda
+			'scope'         => rawurlencode( 'https://www.googleapis.com/auth/calendar' ),
 			'access_type'   => 'offline',
 			'prompt'        => 'consent',
 			'state'         => $state,

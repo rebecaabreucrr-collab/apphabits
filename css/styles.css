@@ -966,3 +966,4 @@ fieldset.rev:has(input[name=inc]:not(:checked)) { opacity: .55; }
 .ag-colors input:checked + i { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--c); }
 .ag-colors input:focus-visible + i { outline: 2px solid var(--accent); outline-offset: 3px; }
 .ag-colors small { font-size: 12px; color: var(--muted); }
+.ag-bday { display: block; margin-top: 2px; color: var(--accent); font-weight: 600; } .ag-bday svg { width: 13px; height: 13px; vertical-align: -2px; }
