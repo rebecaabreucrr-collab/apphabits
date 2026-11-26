@@ -169,7 +169,7 @@ export function defaultState() {
       layout: 'rosa', // rosa | lavanda | ceu | minimal
       theme: 'auto', // auto | light | dark
       tabs: [{ id: 'desafio', label: 'Desafio' }, { id: 'leitura', label: 'Leitura' }, { id: 'cuidados', label: 'Cuidados' }],
-      dash: [{ id: 'frase', on: true }, { id: 'semanal', on: true }, { id: 'resumo', on: true }, { id: 'semana', on: true }, { id: 'agua', on: true }, { id: 'cards', on: true },
+      dash: [{ id: 'frase', on: true }, { id: 'resumo', on: true }, { id: 'semana', on: true }, { id: 'agua', on: true }, { id: 'cards', on: true },
         { id: 'rotina', on: true }, { id: 'desafio', on: true }],
       home: defaultHome(),
     },
@@ -294,7 +294,6 @@ export const PHRASES = [
 ];
 export const DASH_NAMES = {
   frase: 'Frase do dia',
-  semanal: 'Prioridades e revisão da semana',
   resumo: 'Hábitos + quadrado da direita', semana: 'Semana', agua: 'Água', cards: 'Cards de resumo',
   rotina: 'Rotina do dia', desafio: 'Metas do desafio',
 };

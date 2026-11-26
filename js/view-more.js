@@ -42,7 +42,6 @@ function renderMore() {
   <h3 class="sec-title">Organizar</h3>
   <section class="card menu">
     ${item('#/metas', '🎯', 'Metas e desafio', 'Objetivos do mês e do ano, desafio de 20 dias', 'violet')}
-    ${item('#/revisao', '📝', 'Revisão da semana', 'O que deu certo, o que travou e as prioridades', 'pink')}
     ${item('#/sono', '🌙', 'Sono', 'Horários, qualidade e meta de horas', 'sky')}
     ${item('#/financas', '👛', 'Finanças', 'Receitas, despesas, contas, limites e leitura de fotos', 'violet')}
     ${item('#/relatorio', '📊', 'Relatório', 'Semana, mês e ano, sequências e dias de pausa', 'pink')}

@@ -1,13 +1,11 @@
-// Metas de longo prazo (com o Desafio de 20 dias dentro) e Revisão semanal.
+// Metas de longo prazo (com o Desafio de 20 dias dentro).
 import { state, save } from './store.js';
 import { esc, dateKey, addDays, diffDays, weekStart, fmtShort, fmtLong, fmtMinutes, uid, parseKey } from './utils.js';
 import { A, C, ui, sheet, rerender, toast, empty, opt, bar, ring, confirmSheet, go } from './ui.js';
 import { activeChallenge, challengeDay, challengeEnd, challengeStats, dayScore, isTaskIdDone, waterTotal, findTask } from './logic.js';
 import { emojiGrid } from './forms.js';
 import { COLORS } from './defaults.js';
-import { computeReport } from './view-report.js';
 import { money } from './finance.js';
-import { sleepWeek } from './view-sleep.js';
 
 /* ================= METAS ================= */
 export const GOAL_KINDS = {
@@ -81,7 +79,7 @@ function renderGoals() {
   <h3 class="sec-title">Metas em andamento</h3>
   ${open.length ? open.map(goalCard).join('') : empty('🎯', 'Nenhuma meta ainda', 'Ex.: ler 12 livros no ano, guardar R$ 5.000, 100 horas de inglês, treinar 150 dias.', '<button class="btn primary" data-act="goalNew">+ Criar meta</button>')}
   ${done.length ? `<h3 class="sec-title">Alcançadas 🏆</h3>${done.map(goalCard).join('')}` : ''}
-  <a class="card menu-link" href="#/revisao"><span class="t-icon bg-soft-violet">📝</span><div class="grow"><b>Revisão da semana</b><small>O que deu certo, o que travou e as 3 prioridades</small></div><span class="t-go">›</span></a>`;
+`;
 }
 
 function goalSheet(g) {
@@ -145,70 +143,6 @@ A.goalEdit = (el) => goalSheet(goalById(el.dataset.id));
 A.goalDone = (el) => { const g = goalById(el.dataset.id); g.done = !g.done; save(); A.closeSheet(); rerender(); toast(g.done ? '🏆 Meta concluída!' : 'Meta reaberta'); };
 A.goalLogDel = (el) => { const g = goalById(el.dataset.id); g.log.splice(Number(el.dataset.i), 1); save(); goalDetail(g); rerender(); };
 
-/* ================= REVISÃO SEMANAL ================= */
-const R = () => (state.reviews ||= {});
-/** semana revisada por padrão: a atual no fim de semana (sex–dom); senão, a anterior */
-const defaultReviewWeek = () => { const t = dateKey(); const wd = parseKey(t).getDay(); return [5, 6, 0].includes(wd) ? weekStart(t) : addDays(weekStart(t), -7); };
-
-function renderReview() {
-  const ws = ui.revWeek || defaultReviewWeek();
-  const we = addDays(ws, 6);
-  const rv = R()[ws] || { good: '', bad: '', change: '', priorities: ['', '', ''], score: 0 };
-  const r = computeReport(ws, we);
-  const tasks = Object.values(r.per).filter((t) => t.total >= 2);
-  const top = [...tasks].sort((a, b) => b.done / b.total - a.done / a.total).slice(0, 3);
-  const low = [...tasks].sort((a, b) => a.done / a.total - b.done / b.total).filter((t) => t.done / t.total < 0.6).slice(0, 3);
-  const spent = (() => { let v = 0; for (const e of state.finance.entries) if (e.kind === 'despesa' && e.status !== 'pendente' && e.date >= ws && e.date <= we) v += e.amount; return v; })();
-  const sl = sleepWeek(ws);
-  const past = Object.keys(R()).filter((k) => R()[k].savedAt).sort().reverse().slice(0, 8);
-  return `<header class="page-head"><a class="back" href="#/metas" aria-label="Voltar">‹</a><h1>Revisão da semana</h1></header>
-  <div class="rep-nav"><button class="icon-btn" data-act="revShift" data-n="-7" aria-label="Semana anterior">‹</button><b>${fmtShort(ws)} a ${fmtShort(we)}</b>
-    <button class="icon-btn" data-act="revShift" data-n="7" aria-label="Próxima semana" ${ws >= weekStart(dateKey()) ? 'disabled' : ''}>›</button></div>
-  <section class="card rep-hero">${ring(r.rate, { size: 92, stroke: 10, label: `${Math.round(r.rate * 100)}%`, sub: 'da semana' })}
-    <div class="grow"><b>${r.done} de ${r.total} feitos</b><small>${r.perfect} dia(s) 100% · água em ${r.habits.waterDays}/${r.n || 7} dias</small>
-      <small>Estudo ${fmtMinutes(r.habits.study / 60)} · Inglês ${fmtMinutes(r.habits.english / 60)} · Leitura ${fmtMinutes(r.habits.readSec / 60)}</small>
-      ${sl.n ? `<small>Sono: média ${fmtMinutes(sl.avg * 60)} por noite</small>` : ''}<small>Gastos pagos na semana: ${money(spent)}</small></div></section>
-  ${top.length ? `<section class="card"><h2>🌟 Mandou bem</h2><ul class="mini-list">${top.map((t) => `<li><b>${esc(t.title)}</b><small>${t.done}/${t.total} dias</small></li>`).join('')}</ul></section>` : ''}
-  ${low.length ? `<section class="card"><h2>🧱 Precisou de atenção</h2><ul class="mini-list">${low.map((t) => `<li><b>${esc(t.title)}</b><small>${t.done}/${t.total} dias</small></li>`).join('')}</ul></section>` : ''}
-  <form class="card form" id="review-form" data-w="${ws}">
-    <label class="field"><span>🎉 O que deu certo esta semana?</span><textarea name="good" rows="2">${esc(rv.good)}</textarea></label>
-    <label class="field"><span>🧱 O que travou ou atrapalhou?</span><textarea name="bad" rows="2">${esc(rv.bad)}</textarea></label>
-    <label class="field"><span>🔄 O que vou fazer diferente?</span><textarea name="change" rows="2">${esc(rv.change || '')}</textarea></label>
-    <div class="field"><span>🎯 3 prioridades da próxima semana</span>${[0, 1, 2].map((i) => `<input name="p${i}" value="${esc(rv.priorities?.[i]?.t ?? rv.priorities?.[i] ?? '')}" placeholder="Prioridade ${i + 1}">`).join('')}</div>
-    <div class="field"><span>Nota da semana</span><div class="score">${[1, 2, 3, 4, 5].map((n) => `<label><input type="radio" name="score" value="${n}" ${rv.score === n ? 'checked' : ''}><span>❤️</span></label>`).join('')}</div></div>
-    <button class="btn primary block">${rv.savedAt ? 'Atualizar revisão' : 'Salvar revisão'}</button>
-  </form>
-  ${past.length ? `<section class="card"><h2>Revisões anteriores</h2><ul class="mini-list">${past.map((k) => `<li data-act="revOpen" data-w="${k}"><div class="grow"><b>${fmtShort(k)} a ${fmtShort(addDays(k, 6))}</b>
-    <small>${'❤️'.repeat(R()[k].score || 0) || 'sem nota'}${R()[k].good ? ' · ' + esc(R()[k].good.slice(0, 50)) : ''}</small></div><span class="t-go">›</span></li>`).join('')}</ul></section>` : ''}`;
-}
-document.addEventListener('submit', (e) => {
-  if (e.target.id !== 'review-form') return;
-  e.preventDefault();
-  const fd = new FormData(e.target); const ws = e.target.dataset.w;
-  const prev = R()[ws]?.priorities || [];
-  R()[ws] = { good: fd.get('good').trim(), bad: fd.get('bad').trim(), change: fd.get('change').trim(), score: Number(fd.get('score') || 0), savedAt: Date.now(),
-    priorities: [0, 1, 2].map((i) => ({ t: String(fd.get(`p${i}`) || '').trim(), done: prev[i]?.t === String(fd.get(`p${i}`) || '').trim() ? !!prev[i]?.done : false })) };
-  save(); toast('Revisão salva 💜 Boa semana!'); rerender();
-});
-A.revShift = (el) => { ui.revWeek = addDays(ui.revWeek || defaultReviewWeek(), Number(el.dataset.n)); rerender(); };
-A.revOpen = (el) => { ui.revWeek = el.dataset.w; rerender(); window.scrollTo(0, 0); };
-
-/** bloco da tela inicial: prioridades da semana (vindas da revisão anterior) + lembrete de revisão */
-export function weeklyBlock() {
-  const t = dateKey(); const ws = weekStart(t);
-  const src = R()[addDays(ws, -7)];
-  const pr = (src?.priorities || []).filter((p) => p.t);
-  const wd = parseKey(t).getDay();
-  const remind = [5, 6, 0].includes(wd) && !R()[ws]?.savedAt;
-  if (!pr.length && !remind) return '';
-  return `<section class="card weekly">
-    ${pr.length ? `<div class="card-head"><h2>🎯 Prioridades da semana</h2><a class="link" href="#/revisao">Revisão</a></div>
-      <ul class="goals">${pr.map((p, i) => `<li class="${p.done ? 'done' : ''}"><button class="check ${p.done ? 'on' : ''}" data-act="prioToggle" data-w="${addDays(ws, -7)}" data-i="${src.priorities.indexOf(p)}" aria-label="${esc(p.t)}"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.2 4.2L19 7" /></svg></button><span>${esc(p.t)}</span></li>`).join('')}</ul>` : ''}
-    ${remind ? `<a class="remind" href="#/revisao">📝 <b>Hora da revisão da semana</b><small>5 minutinhos para fechar a semana e escolher as prioridades</small></a>` : ''}
-  </section>`;
-}
-A.prioToggle = (el) => { const p = R()[el.dataset.w].priorities[Number(el.dataset.i)]; p.done = !p.done; save(); rerender(); };
-
 /** tile das metas para a tela inicial */
 export function goalsTile() {
   const open = G().filter((g) => !g.done).map((g) => ({ g, p: goalProgress(g) })).filter((x) => x.p.pct < 1).sort((a, b) => (a.g.deadline || '9').localeCompare(b.g.deadline || '9'))[0];
@@ -219,5 +153,6 @@ export function goalsTile() {
 
 export const routes = {
   metas: { render: renderGoals, tab: 'metas' },
-  revisao: { render: renderReview, tab: 'metas' },
+  // a revisão semanal saiu: links antigos abrem as Metas
+  revisao: { render: () => { setTimeout(() => location.replace('#/metas'), 0); return ''; }, tab: 'metas' },
 };

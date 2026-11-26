@@ -51,7 +51,8 @@ function migrate(s) {
     if (i >= 0) tabs[i] = { id: 'metas', label: 'Metas' };
     else if (tabs.length < 5 && !tabs.some((t) => t.id === 'metas')) tabs.push({ id: 'metas', label: 'Metas' });
   }
-  if (!s.settings.dash.some((x) => x.id === 'semanal')) s.settings.dash.splice(1, 0, { id: 'semanal', on: true });
+  // revisão semanal saiu do app
+  s.settings.dash = s.settings.dash.filter((x) => x.id !== 'semanal');
   for (const d of ['resumo', 'semana', 'agua', 'cards', 'rotina', 'desafio', 'frase']) {
     if (!s.settings.dash.some((x) => x.id === d)) s.settings.dash[d === 'frase' ? 'unshift' : 'push']({ id: d, on: true });
   }

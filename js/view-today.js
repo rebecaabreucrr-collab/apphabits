@@ -8,7 +8,7 @@ import { tasksFor, isDone, toggleDone, dayProgress, findTask, hairDay, workoutFo
 import { cycleWheel } from './view-cycle.js';
 import { studyDay, englishDay, lastSession, TRACKS } from './view-study.js';
 import { monthSummary, thisMonth, money } from './finance.js';
-import { weeklyBlock, goalsTile } from './view-goals.js';
+import { goalsTile } from './view-goals.js';
 import { sleepTile } from './view-sleep.js';
 import { streakBadge, celebrate } from './view-streaks.js';
 import { MASKS, PHRASES } from './defaults.js';
@@ -358,7 +358,6 @@ export function renderToday() {
   }).join('');
   const blocks = {
     frase: phraseCard(k),
-    semanal: k === dateKey() ? weeklyBlock() : '',
     resumo: state.settings.home.square2 === 'nenhum'
       ? `<div class="squares solo">${habitsSquare(k, tasks, true)}</div>`
       : `<div class="squares">${habitsSquare(k, tasks)}${sideSquare(k)}</div>`,
