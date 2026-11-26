@@ -703,7 +703,12 @@ function mr_g_bridge_events( $cals, $sel, $tmin, $tmax, $zone ) {
 	$real = array_values( array_filter( wp_list_pluck( $cals, 'id' ), function ( $id ) { return '__aniversarios' !== $id; } ) );
 	$ids  = $virt ? $real : array_values( array_diff( $sel, array( '__aniversarios' ) ) );
 	$isb  = function ( $e ) { return ( $e['tipo'] ?? $e['eventType'] ?? '' ) === 'birthday' || preg_match( '/^(anivers[aá]rio|birthday)\b/iu', (string) ( $e['titulo'] ?? '' ) ); };
-	$r = mr_g_bridge( 'events', array( 'de' => $tmin, 'ate' => $tmax, 'ids' => $ids ) );
+	// os aniversários do Google ficam na agenda principal ou na dos Contatos, que podem não estar na lista da ponte
+	$extra = $virt ? array( 'primary', 'addressbook#contacts@group.v.calendar.google.com' ) : array();
+	$r     = mr_g_bridge( 'events', array( 'de' => $tmin, 'ate' => $tmax, 'ids' => array_values( array_unique( array_merge( $ids, $extra ) ) ) ) );
+	if ( is_wp_error( $r ) && $extra ) {
+		$r = mr_g_bridge( 'events', array( 'de' => $tmin, 'ate' => $tmax, 'ids' => $ids ) ); // a ponte não aceitou: busca só as agendas dela
+	}
 	if ( is_wp_error( $r ) ) {
 		return mr_g_err( $r );
 	}
@@ -713,10 +718,14 @@ function mr_g_bridge_events( $cals, $sel, $tmin, $tmax, $zone ) {
 	}
 	$items = array();
 	foreach ( (array) ( $r['events'] ?? array() ) as $e ) {
-		if ( ! is_array( $e ) || ! isset( $e['cal'], $e['id'], $e['inicio'], $by[ $e['cal'] ] ) ) {
+		if ( ! is_array( $e ) || ! isset( $e['cal'], $e['id'], $e['inicio'] ) ) {
 			continue;
 		}
-		if ( $virt && $isb( $e ) ) {
+		$known = isset( $by[ $e['cal'] ] );
+		if ( ! $known && ! ( $virt && ( $isb( $e ) || false !== strpos( (string) $e['cal'], '#contacts@' ) ) ) ) {
+			continue;
+		}
+		if ( $virt && ( $isb( $e ) || ! $known ) ) {
 			$e['cal'] = '__aniversarios';
 		} elseif ( ! in_array( $e['cal'], $sel, true ) ) {
 			continue;

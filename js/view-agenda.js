@@ -18,6 +18,7 @@ G.at = 0; // ao abrir o app, confere de novo com o WordPress/Google (mantém o q
 try { localStorage.removeItem('minharotina.gcal'); } catch { /* versão antiga (iCal) */ }
 const gsave = () => { try { localStorage.setItem(GKEY, JSON.stringify(G)); } catch { /* sem espaço: fica na memória */ } };
 let busy = false;
+let calsChecked = false; // já buscou a lista de agendas desde que o app abriu?
 const linked = () => wpOn() && G.status?.connected;
 const selCals = () => (G.calendars || []).filter((c) => (G.status?.selected || []).includes(c.id));
 const writable = () => selCals().filter((c) => c.write);
@@ -59,7 +60,8 @@ async function gRefresh({ force = false, s, e } = {}) {
     if (G.range && !force) r = { s: G.range.s < ws ? G.range.s : ws, e: G.range.e > we ? G.range.e : we };
     if (Math.round((parseKey(r.e) - parseKey(r.s)) / 86400000) > 160) r = { s: ws, e: we };
     if (G.status.connected) {
-      if (force || !G.calendars?.length) G.calendars = (await gapi('GET', '/agendas', { query: force ? '?refresh=1' : '' })).calendars;
+      // a lista de agendas é buscada de novo a cada vez que o app abre (e no "Atualizar")
+      if (force || !calsChecked || !G.calendars?.length) { G.calendars = (await gapi('GET', '/agendas', { query: force ? '?refresh=1' : '' })).calendars; calsChecked = true; }
       G.events = selCals().length ? (await gapi('GET', '/eventos', { query: `?start=${r.s}&end=${r.e}&tz=${encodeURIComponent(TZ())}` })).events : [];
     }
     G.range = r; G.error = '';
