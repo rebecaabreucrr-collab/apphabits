@@ -838,13 +838,6 @@ fieldset.rev:has(input[name=inc]:not(:checked)) { opacity: .55; }
 .read-book { margin: 4px 2px 10px; }
 
 /* ---- Agenda ---- */
-.ag-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; margin-top: 8px; }
-.ag-grid > small { font-size: 11.5px; font-weight: 700; color: var(--muted); padding: 2px 0 4px; }
-.ag-day { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 0 4px; border: 0; border-radius: 12px; background: none; font: inherit; color: var(--text); cursor: pointer; }
-.ag-day b { font-size: 15px; font-weight: 600; } .ag-day i { font-style: normal; font-size: 10px; line-height: 8px; height: 8px; color: var(--accent); letter-spacing: 1px; }
-.ag-day.today b { color: var(--accent); font-weight: 800; }
-.ag-day.sel { background: var(--accent); } .ag-day.sel b, .ag-day.sel i { color: #fff; }
-.ag-today { display: block; margin: 8px auto 0; }
 .ag-list { list-style: none; margin: 0; padding: 0; }
 .ag-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); cursor: pointer; }
 .ag-list .ag-item:first-child { border-top: 0; }
@@ -910,8 +903,6 @@ fieldset.rev:has(input[name=inc]:not(:checked)) { opacity: .55; }
 .lk-pack li { display: flex; align-items: center; gap: 10px; padding: 6px 0; } .lk-pack li.on .grow { text-decoration: line-through; color: var(--muted); }
 .lk-tile .collage.mini { position: absolute; right: 12px; top: 12px; } .lk-tile { position: relative; }
 /* agenda: cor de cada agenda do Google */
-.ag-day i { display: flex; gap: 2px; justify-content: center; } .ag-day i em { width: 5px; height: 5px; border-radius: 50%; }
-.ag-day.sel i em { background: #fff !important; }
 .ag-item { border-left: 3px solid var(--cal, var(--accent)); padding-left: 10px; border-top-color: var(--line); }
 .ag-item .ag-time { color: var(--cal, var(--accent)); }
 .ag-item .ag-cal { font-size: 11.5px; }
@@ -928,3 +919,38 @@ fieldset.rev:has(input[name=inc]:not(:checked)) { opacity: .55; }
 .crop { position: relative; touch-action: none; user-select: none; -webkit-user-select: none; border-radius: 14px; overflow: hidden; max-height: 62vh; display: flex; justify-content: center; background: #111; }
 .crop img { display: block; max-width: 100%; max-height: 62vh; object-fit: contain; pointer-events: none; }
 .crop-box { position: absolute; border: 2px solid #fff; box-shadow: 0 0 0 9999px rgba(0, 0, 0, .5); border-radius: 6px; pointer-events: none; }
+
+/* ---- Agenda em grade (como a Google Agenda) ---- */
+@media (min-width: 900px) { .view[data-route="agenda"] { max-width: 1320px; } }
+.ag-wrap { display: grid; gap: 16px; }
+@media (min-width: 900px) { .ag-wrap { grid-template-columns: minmax(0, 1fr) 270px; align-items: start; } .ag-aside { position: sticky; top: 12px; } }
+.agm-head { display: flex; align-items: center; gap: 10px; margin: 4px 0 10px; } .agm-head h2 { margin: 0; font-size: 19px; }
+.agm-wd { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin-bottom: 4px; }
+.agm-wd small { text-align: center; font-size: 12px; font-weight: 600; color: var(--muted); }
+.agm-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.agm-day { min-height: 118px; min-width: 0; padding: 6px 5px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 3px; cursor: pointer; overflow: hidden; }
+.agm-day.out { opacity: .5; background: transparent; }
+.agm-day.sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.agm-n { font-size: 13px; font-weight: 700; padding: 0 3px 2px; }
+.agm-day.today .agm-n { color: var(--accent); }
+.agm-ev { display: block; width: 100%; text-align: left; font: inherit; font-size: 12px; line-height: 1.25; padding: 3px 6px; border-radius: 5px; border: 0; border-left: 3px solid var(--cal);
+  background: color-mix(in srgb, var(--cal) 20%, var(--surface)); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.agm-ev.all { border-left: 0; background: color-mix(in srgb, var(--cal) 32%, var(--surface)); }
+.agm-t { opacity: .85; }
+.agm-more { font-size: 11px; color: var(--muted); padding-left: 3px; }
+@media (max-width: 640px) {
+  .agm-wd, .agm-grid { gap: 2px; } .agm-wd small { font-size: 10.5px; }
+  .agm-day { min-height: 74px; padding: 3px 2px; border-radius: 8px; gap: 2px; }
+  .agm-n { font-size: 12px; padding: 0 2px; }
+  .agm-ev { font-size: 9.5px; padding: 1px 3px; border-left-width: 2px; border-radius: 3px; }
+  .agm-t { display: none; }
+  .agm-more { font-size: 9.5px; }
+}
+.ag-side h4 { margin: 4px 0 6px; font-size: 13px; color: var(--muted); font-weight: 600; } .ag-side h4 + .ag-cb { margin-top: 0; }
+.ag-side h4:not(:first-child) { margin-top: 14px; }
+.ag-cb { display: flex; align-items: center; gap: 10px; padding: 7px 0; cursor: pointer; font-size: 14.5px; }
+.ag-cb input { position: absolute; opacity: 0; pointer-events: none; width: 1px !important; height: 1px; }
+.ag-cb i { width: 18px; height: 18px; flex: none; border-radius: 4px; border: 2px solid var(--cal); display: grid; place-items: center; }
+.ag-cb input:checked + i { background: var(--cal); }
+.ag-cb input:checked + i::after { content: ''; width: 5px; height: 9px; border: solid #fff; border-width: 0 2px 2px 0; transform: translate(0, -1px) rotate(45deg); }
+.ag-conn { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); } .ag-conn summary { font-size: 13.5px; font-weight: 600; color: var(--muted); }

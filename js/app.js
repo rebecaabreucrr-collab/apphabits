@@ -88,6 +88,7 @@ function render() {
   }
   renderTabs();
   try {
+    view.dataset.route = path;
     view.innerHTML = route.render(params);
     iconize(view);
   } catch (e) {

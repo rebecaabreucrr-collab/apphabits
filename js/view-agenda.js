@@ -83,42 +83,50 @@ export function eventsBetween(s, e) {
 const when = (x) => (x.allDay ? 'Dia todo' : `${x.time || ''}${x.end ? '–' + x.end : ''}`);
 
 /* ---------- tela ---------- */
+/** calendário do mês em grade: cada dia mostra os compromissos (horário + nome) e "+N" quando não cabem */
 function monthGrid(month, sel) {
   const first = parseKey(month + '-01');
-  const startOff = (first.getDay() + 6) % 7; // semana começa na segunda
   const dim = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
-  const evs = eventsBetween(month + '-01', `${month}-${pad(dim)}`);
-  const by = {}; for (const x of evs) (by[x.date] ||= []).push(x);
-  const today = dateKey();
+  const gs = addDays(month + '-01', -((first.getDay() + 6) % 7)); // segunda-feira da 1ª semana
+  const last = `${month}-${pad(dim)}`; const ge = addDays(last, (7 - parseKey(last).getDay()) % 7); // domingo da última semana
+  const by = {}; for (const x of eventsBetween(gs, ge)) (by[x.date] ||= []).push(x);
+  const today = dateKey(); const MAX = 3;
   let cells = '';
-  for (let i = 0; i < startOff; i++) cells += '<span></span>';
-  for (let d = 1; d <= dim; d++) {
-    const k = `${month}-${pad(d)}`; const xs = by[k] || [];
-    cells += `<button class="ag-day ${k === sel ? 'sel' : ''} ${k === today ? 'today' : ''}" data-act="agPick" data-d="${k}"><b>${d}</b><i>${xs.slice(0, 3).map((x) => `<em style="background:${x.color || 'var(--accent)'}"></em>`).join('')}</i></button>`;
+  for (let k = gs; k <= ge; k = addDays(k, 1)) {
+    const xs = by[k] || []; const out = !k.startsWith(month);
+    cells += `<div class="agm-day ${out ? 'out' : ''} ${k === sel ? 'sel' : ''} ${k === today ? 'today' : ''}" data-act="agPick" data-d="${k}" role="button" tabindex="0">
+      <b class="agm-n">${Number(k.slice(8))}</b>
+      ${xs.slice(0, MAX).map((x) => `<button class="agm-ev ${x.allDay ? 'all' : ''}" style="--cal:${x.color || 'var(--accent)'}" data-act="agOpen" data-src="${x.src}" data-id="${esc(x.id)}" data-cal="${esc(x.cal || '')}" data-d="${x.date}" title="${esc(`${when(x)} ${x.title}`)}">${x.allDay ? '' : `<span class="agm-t">${esc(x.time)}</span> `}${esc(x.title)}</button>`).join('')}
+      ${xs.length > MAX ? `<small class="agm-more">+${xs.length - MAX}</small>` : ''}</div>`;
   }
-  return `<div class="ag-grid">${[1, 2, 3, 4, 5, 6, 0].map((w) => `<small>${WD[w][0]}</small>`).join('')}${cells}</div>`;
+  return `<div class="agm"><div class="agm-wd">${['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map((w) => `<small>${w}</small>`).join('')}</div><div class="agm-grid">${cells}</div></div>`;
 }
 function itemRow(x) {
   return `<li class="ag-item ${x.src}" style="--cal:${x.color || 'var(--accent)'}" data-act="agOpen" data-src="${x.src}" data-id="${esc(x.id)}" data-cal="${esc(x.cal || '')}" data-d="${x.date}">
     <span class="ag-time">${esc(when(x))}</span>
     <div class="grow"><b>${esc(x.title)}</b>${x.location ? `<small>📍 ${esc(x.location)}</small>` : ''}${x.calName && selCals().length > 1 ? `<small class="ag-cal">${esc(x.calName)}</small>` : ''}</div></li>`;
 }
+/** lista lateral: Minhas agendas (posso editar) e Outras agendas (só leitura), com a cor de cada uma */
 function googleCard() {
-  if (!wpOn()) return `<section class="card ag-google"><h2>Google Agenda</h2><p class="small muted">Para usar a sua Google Agenda aqui, abra o app pelo endereço do WordPress (seusite/minha-rotina/). Por enquanto, os compromissos ficam só no app.</p></section>`;
+  if (!wpOn()) return `<section class="card ag-side"><h2>Google Agenda</h2><p class="small muted">Para usar a sua Google Agenda aqui, abra o app pelo endereço do WordPress (seusite/minha-rotina/). Por enquanto, os compromissos ficam só no app.</p></section>`;
   const st = G.status;
-  if (!st) return `<section class="card ag-google"><p class="small muted">Verificando a Google Agenda…</p></section>`;
-  if (!st.configured) return `<section class="card ag-google"><h2>Google Agenda</h2><p class="small muted">Falta configurar a ligação com o Google no painel do WordPress: <b>Minha Rotina → Google Agenda</b> (tem o passo a passo lá). Depois volte aqui e toque em Conectar.</p></section>`;
-  if (!st.connected) return `<section class="card ag-google"><h2>Conectar a Google Agenda</h2>
+  if (!st) return `<section class="card ag-side"><p class="small muted">Verificando a Google Agenda…</p></section>`;
+  if (!st.configured) return `<section class="card ag-side"><h2>Google Agenda</h2><p class="small muted">Falta configurar a ligação com o Google no painel do WordPress: <b>Minha Rotina → Google Agenda</b> (tem o passo a passo lá). Depois volte aqui e toque em Conectar.</p></section>`;
+  if (!st.connected) return `<section class="card ag-side"><h2>Conectar a Google Agenda</h2>
     <p class="small muted">Você vai entrar na sua conta Google e permitir o acesso. Se aparecer “app não verificado”, toque em <b>Avançado → Acessar</b> (é o seu próprio app).</p>
     <a class="btn primary block" href="${esc(st.connect)}">Conectar com o Google</a>
     ${G.error ? `<p class="small err">${esc(G.error)}</p>` : ''}</section>`;
-  const cals = G.calendars || [];
-  return `<section class="card ag-google"><div class="card-head"><h2>Agendas do Google</h2><button class="link" data-act="agRefresh">🔄 Atualizar</button></div>
-    <p class="small muted">Marque as agendas que aparecem no app.${G.at ? ` Atualizado às ${pad(new Date(G.at).getHours())}:${pad(new Date(G.at).getMinutes())}.` : ''}</p>
-    ${cals.map((c) => `<label class="toggle-row"><span><b><i class="ag-dot" style="background:${c.color}"></i>${esc(c.name)}</b><small>${c.write ? 'pode criar e editar' : 'só leitura'}</small></span>
-      <input type="checkbox" class="switch" data-change="agCal" data-id="${esc(c.id)}" ${(st.selected || []).includes(c.id) ? 'checked' : ''}></label>`).join('')}
+  const cals = G.calendars || []; const on = new Set(st.selected || []);
+  const row = (c) => `<label class="ag-cb" style="--cal:${c.color}"><input type="checkbox" data-change="agCal" data-id="${esc(c.id)}" ${on.has(c.id) ? 'checked' : ''}><i></i><span>${esc(c.name)}</span></label>`;
+  const mine = cals.filter((c) => c.write); const other = cals.filter((c) => !c.write);
+  return `<section class="card ag-side">
+    ${mine.length ? `<h4>Minhas agendas</h4>${mine.map(row).join('')}` : ''}
+    ${other.length ? `<h4>Outras agendas</h4>${other.map(row).join('')}` : ''}
     ${G.error ? `<p class="small err">${esc(G.error)}</p>` : ''}
-    <button class="btn small ghost mt" data-act="agDisconnect">Desconectar do Google</button></section>`;
+    <details class="ag-conn"><summary>Conexão com o Google</summary>
+      <p class="small muted">Conectada.${G.at ? ` Atualizado às ${pad(new Date(G.at).getHours())}:${pad(new Date(G.at).getMinutes())}.` : ''} Só as agendas marcadas aparecem no app.</p>
+      <div class="row gap wrap"><button class="btn small" data-act="agRefresh">🔄 Atualizar</button><button class="btn small ghost" data-act="agDisconnect">Desconectar</button></div></details>
+  </section>`;
 }
 function oldItemsCard() {
   const n = AG().items.length; if (!linked() || !n || !writable().length) return '';
@@ -135,26 +143,25 @@ function renderAgenda(p) {
   const month = ui.agMonth || sel.slice(0, 7);
   const mDate = parseKey(month + '-01');
   const dayEvs = eventsBetween(sel, sel);
-  const next = eventsBetween(addDays(today, 1), addDays(today, 7));
   const canAdd = !wpOn() || !G.status?.connected || writable().length;
   const needPick = linked() && !selCals().length;
   return `<header class="page-head top"><h1>Agenda</h1><div class="ph-right">${canAdd && !needPick ? '<button class="link" data-act="agNew">+ Evento</button>' : ''}</div></header>
-  ${needPick ? '<section class="card"><b>Escolha quais agendas do Google aparecem aqui</b><p class="small muted">Lá embaixo, marque por exemplo Pessoal, Rotina e Aniversários.</p></section>' : ''}
-  <section class="card">
-    <div class="rep-nav"><button class="icon-btn" data-act="agMonth" data-n="-1" aria-label="Mês anterior">‹</button>
-      <b>${MONTHS[mDate.getMonth()][0].toUpperCase() + MONTHS[mDate.getMonth()].slice(1)} ${mDate.getFullYear()}</b>
-      <button class="icon-btn" data-act="agMonth" data-n="1" aria-label="Próximo mês">›</button></div>
-    ${monthGrid(month, sel)}
-    ${sel !== today || month !== today.slice(0, 7) ? '<button class="link ag-today" data-act="agToday">Voltar para hoje</button>' : ''}
-  </section>
-  <section class="card"><div class="card-head"><h2>${sel === today ? 'Hoje' : fmtLong(sel)}</h2>${canAdd && !needPick ? `<button class="link" data-act="agNew" data-d="${sel}">+ Adicionar</button>` : ''}</div>
-    ${dayEvs.length ? `<ul class="ag-list">${dayEvs.map(itemRow).join('')}</ul>` : '<p class="muted small">Nada neste dia.</p>'}</section>
-  ${sel === today ? `<section class="card"><h2>Próximos 7 dias</h2>${next.length ? (() => {
-    const by = {}; next.forEach((x) => (by[x.date] ||= []).push(x));
-    return Object.entries(by).map(([d, xs]) => `<h4 class="ag-dh">${fmtLong(d)}</h4><ul class="ag-list">${xs.map(itemRow).join('')}</ul>`).join('');
-  })() : '<p class="muted small">Nada marcado para os próximos dias.</p>'}</section>` : ''}
-  ${oldItemsCard()}
-  ${googleCard()}`;
+  ${needPick ? '<section class="card"><b>Escolha quais agendas do Google aparecem aqui</b><p class="small muted">Na lista de agendas, marque por exemplo Compromissos pessoais, Rotina e Aniversários.</p></section>' : ''}
+  <div class="ag-wrap">
+    <div class="ag-main">
+      <div class="agm-head"><button class="icon-btn" data-act="agMonth" data-n="-1" aria-label="Mês anterior">‹</button>
+        <h2>${MONTHS[mDate.getMonth()][0].toUpperCase() + MONTHS[mDate.getMonth()].slice(1)} ${mDate.getFullYear()}</h2>
+        <span class="grow"></span><button class="btn small ghost" data-act="agToday">Hoje</button>
+        <button class="icon-btn" data-act="agMonth" data-n="1" aria-label="Próximo mês">›</button></div>
+      ${monthGrid(month, sel)}
+    </div>
+    <aside class="ag-aside">
+      <section class="card ag-daycard"><div class="card-head"><h2>${sel === today ? 'Hoje' : fmtLong(sel)}</h2>${canAdd && !needPick ? `<button class="link" data-act="agNew" data-d="${sel}">+ Adicionar</button>` : ''}</div>
+        ${dayEvs.length ? `<ul class="ag-list">${dayEvs.map(itemRow).join('')}</ul>` : '<p class="muted small">Nada neste dia.</p>'}</section>
+      ${googleCard()}
+      ${oldItemsCard()}
+    </aside>
+  </div>`;
 }
 
 /* ---------- ações ---------- */
