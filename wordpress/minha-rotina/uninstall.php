@@ -13,3 +13,6 @@ delete_metadata( 'user', 0, 'minha_rotina_gtoken', '', true );
 delete_metadata( 'user', 0, 'minha_rotina_gsel', '', true );
 delete_option( 'minha_rotina_google_client' );
 delete_option( 'minha_rotina_google_secret' );
+delete_option( 'minha_rotina_gas_url' );
+delete_option( 'minha_rotina_gas_token' );
+delete_option( 'minha_rotina_gas_email' );

@@ -954,3 +954,14 @@ fieldset.rev:has(input[name=inc]:not(:checked)) { opacity: .55; }
 .ag-cb input:checked + i { background: var(--cal); }
 .ag-cb input:checked + i::after { content: ''; width: 5px; height: 9px; border: solid #fff; border-width: 0 2px 2px 0; transform: translate(0, -1px) rotate(45deg); }
 .ag-conn { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); } .ag-conn summary { font-size: 13.5px; font-weight: 600; color: var(--muted); }
+
+/* Agenda: formulário igual ao Google */
+.ag-form .row.gap > .field { min-width: 0; }
+.ag-form .row.gap select { flex: 1; min-width: 0; }
+.ag-colors { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ag-colors label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+.ag-colors input { position: absolute; opacity: 0; pointer-events: none; width: 1px; height: 1px; }
+.ag-colors i { width: 24px; height: 24px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 2px var(--surface), 0 0 0 2px transparent; transition: box-shadow .15s; }
+.ag-colors input:checked + i { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--c); }
+.ag-colors input:focus-visible + i { outline: 2px solid var(--accent); outline-offset: 3px; }
+.ag-colors small { font-size: 12px; color: var(--muted); }

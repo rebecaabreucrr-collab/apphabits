@@ -22,6 +22,13 @@ const linked = () => wpOn() && G.status?.connected;
 const selCals = () => (G.calendars || []).filter((c) => (G.status?.selected || []).includes(c.id));
 const writable = () => selCals().filter((c) => c.write);
 const ponte = () => linked() && G.status?.mode === 'ponte'; // ligação emprestada do Recontar Gestão
+const full = () => linked() && !!G.status?.full; // todos os campos do Google
+const REM = [[0, 'Na hora do evento'], [5, '5 minutos antes'], [10, '10 minutos antes'], [15, '15 minutos antes'], [30, '30 minutos antes'], [60, '1 hora antes'], [120, '2 horas antes'], [1440, '1 dia antes'], [2880, '2 dias antes'], [10080, '1 semana antes']];
+const remLabel = (m) => (REM.find(([v]) => v === m)?.[1]) || (m % 1440 === 0 ? `${m / 1440} dias antes` : m % 60 === 0 ? `${m / 60} horas antes` : `${m} minutos antes`);
+const WDN = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+const repeatOpts = (d) => { const x = parseKey(d); return [['', 'Não se repete'], ['daily', 'Todos os dias'], ['weekly', `Semanal: cada ${WDN[x.getDay()]}`], ['monthly', `Mensal no dia ${x.getDate()}`], ['yearly', `Anual em ${x.getDate()} de ${MONTHS[x.getMonth()]}`], ['weekdays', 'Todos os dias úteis (seg. a sex.)']]; };
+const addHour = (t) => { const [h, m] = t.split(':').map(Number); return h >= 23 ? '23:59' : `${pad(h + 1)}:${pad(m)}`; };
+const emails = (v) => [...new Set(String(v || '').split(/[\s,;]+/).map((e) => e.trim().toLowerCase()).filter((e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)))];
 const gLink = (d) => `https://calendar.google.com/calendar/r/day/${d.replace(/-/g, '/')}`;
 
 async function gapi(method, path, { body, query = '' } = {}) {
@@ -126,8 +133,8 @@ function googleCard() {
     ${other.length ? `<h4>Outras agendas</h4>${other.map(row).join('')}` : ''}
     ${G.error ? `<p class="small err">${esc(G.error)}</p>` : ''}
     <details class="ag-conn"><summary>Conexão com o Google</summary>
-      <p class="small muted">Conectada${st.mode === 'ponte' ? ` pela ligação do Recontar Gestão${st.account ? ` (${esc(st.account)})` : ''}` : ''}.${G.at ? ` Atualizado às ${pad(new Date(G.at).getHours())}:${pad(new Date(G.at).getMinutes())}.` : ''} Só as agendas marcadas aparecem no app.</p>
-      ${st.mode === 'ponte' ? '<p class="small muted">Por essa ligação, eventos novos com horário ficam com 30 minutos, e para mudar um evento que já existe use a Google Agenda.</p>' : ''}
+      <p class="small muted">Conectada${st.mode === 'ponte' ? ` pela ligação do Recontar Gestão${st.account ? ` (${esc(st.account)})` : ''}` : st.account ? ` (${esc(st.account)})` : ''}.${G.at ? ` Atualizado às ${pad(new Date(G.at).getHours())}:${pad(new Date(G.at).getMinutes())}.` : ''} Só as agendas marcadas aparecem no app.</p>
+      ${st.mode === 'ponte' ? '<p class="small muted">Por essa ligação, eventos novos com horário ficam com 30 minutos, e para mudar um evento que já existe use a Google Agenda. Para ter todos os campos do Google, ligue a ponte própria no painel do WordPress (Minha Rotina → Google Agenda).</p>' : ''}
       <div class="row gap wrap"><button class="btn small" data-act="agRefresh">🔄 Atualizar</button>${st.mode === 'ponte' ? '' : '<button class="btn small ghost" data-act="agDisconnect">Desconectar</button>'}</div></details>
   </section>`;
 }
@@ -203,6 +210,8 @@ function eventSheet(x, date) {
     const ro = ponte() ? `${esc(x.calName || '')}${x.recurring ? ' · evento que se repete' : ''}. Para mudar, abra na Google Agenda.`
       : `${esc(x.calName || '')} é só leitura${/anivers|birthday|contact/i.test(x.cal + x.calName) ? ' (os aniversários vêm dos seus Contatos do Google — mude por lá)' : ''}.`;
     return sheet(x.title, `<p class="muted">${fmtLong(x.date)} · ${esc(when(x))}</p>${x.location ? `<p>📍 ${esc(x.location)}</p>` : ''}${x.notes ? `<p class="note">${esc(x.notes).replace(/\n/g, '<br>')}</p>` : ''}
+      ${x.meet ? `<p><a class="btn block" href="${esc(x.meet)}" target="_blank" rel="noopener">🎥 Entrar no Google Meet</a></p>` : ''}
+      ${x.guests?.length ? `<p class="small muted">Convidados: ${x.guests.map(esc).join(', ')}</p>` : ''}
       <p class="small muted">${ro}</p>
       ${ponte() ? `<a class="btn block" href="${gLink(x.date)}" target="_blank" rel="noopener">Abrir no Google Agenda</a>` : ''}
       ${ponte() && x.del ? '<button type="button" class="btn danger-ghost block" id="ag-del">Apagar evento</button>' : ''}`, {
@@ -213,6 +222,7 @@ function eventSheet(x, date) {
       })),
     });
   }
+  if (google && full()) return fullSheet(x, it);
   sheet(x ? 'Editar evento' : 'Novo evento', `<form class="form">
     <label class="field"><span>O que é</span><input name="title" required value="${esc(it.title)}" placeholder="Ex.: Dentista, aniversário da Ana"></label>
     ${google ? `<label class="field"><span>Agenda</span><select name="cal" ${x ? 'disabled' : ''}>${writable().map((c) => opt(c.id, c.name, it.cal)).join('')}</select></label>` : ''}
@@ -252,6 +262,80 @@ function eventSheet(x, date) {
         .then(async () => { closeSheet(); toast('Salvo na Google Agenda ✓'); await gRefresh({ force: true, s: G.range?.s, e: G.range?.e }); })
         .catch((err) => { btn.disabled = false; btn.textContent = 'Salvar'; toast(err.message); });
       return false; // fecha só depois que o Google confirmar
+    },
+  });
+}
+/** formulário com os mesmos campos da Google Agenda (ponte própria ou login do Google) */
+function fullSheet(x, it) {
+  const colors = G.status.colors || {};
+  const rem0 = x ? x.reminders : 'default';
+  const remSel = (i) => { const cur = rem0 === 'default' ? (i === 0 ? 'default' : '') : (rem0?.[i] ?? ''); const list = i === 0 ? [['default', 'Padrão da agenda'], ['', 'Sem notificação']] : [['', '—']];
+    const known = REM.some(([v]) => v === cur) || typeof cur !== 'number' ? '' : opt(String(cur), remLabel(cur), String(cur));
+    return `<select name="rem${i}">${list.map(([v, l]) => opt(v, l, String(cur))).join('')}${known}${REM.map(([v, l]) => opt(String(v), l, String(cur))).join('')}</select>`; };
+  const endDate = x ? x.endDate || x.date : it.date;
+  sheet(x ? 'Editar evento' : 'Novo evento', `<form class="form ag-form">
+    <label class="field"><span>O que é</span><input name="title" required value="${esc(it.title)}" placeholder="Adicionar título"></label>
+    <label class="field"><span>Agenda</span><select name="cal" ${x ? 'disabled' : ''}>${writable().map((c) => opt(c.id, c.name, it.cal)).join('')}</select></label>
+    <label class="toggle-row"><span><b>Dia inteiro</b></span><input type="checkbox" class="switch" name="allDay" ${it.allDay ? 'checked' : ''}></label>
+    <div class="row gap"><label class="field grow"><span>Início</span><input type="date" name="date" required value="${it.date}"></label>
+      <label class="field grow ag-t"><span>&nbsp;</span><input type="time" name="time" value="${it.time || ''}"></label></div>
+    <div class="row gap"><label class="field grow"><span>Fim</span><input type="date" name="endDate" value="${endDate}"></label>
+      <label class="field grow ag-t"><span>&nbsp;</span><input type="time" name="end" value="${it.end || ''}"></label></div>
+    ${x?.recurring ? '<p class="small muted">Este evento se repete: a mudança vale só para este dia.</p>' : `<label class="field"><span>Repetição</span><select name="repeat">${repeatOpts(it.date).map(([v, l]) => opt(v, l, '')).join('')}</select></label>`}
+    <label class="field"><span>Local</span><input name="location" value="${esc(it.location || '')}" placeholder="Adicionar local"></label>
+    ${x?.meet ? `<p><a class="btn block" href="${esc(x.meet)}" target="_blank" rel="noopener">🎥 Entrar no Google Meet</a></p>` : '<label class="toggle-row"><span><b>Google Meet</b><small class="muted"> cria o link da videochamada</small></span><input type="checkbox" class="switch" name="meet"></label>'}
+    <label class="field"><span>Convidados</span><textarea name="guests" rows="2" placeholder="e-mails separados por vírgula">${esc((x?.guests || []).join(', '))}</textarea></label>
+    <label class="toggle-row"><span><b>Enviar convite por e-mail</b></span><input type="checkbox" class="switch" name="notify" checked></label>
+    <div class="field"><span>Notificações</span><div class="row gap">${remSel(0)}${remSel(1)}</div></div>
+    <div class="field"><span>Cor</span><div class="ag-colors">
+      <label title="Cor da agenda"><input type="radio" name="colorId" value="" ${!x?.colorId ? 'checked' : ''}><i style="--c:${esc(selCals().find((c) => c.id === it.cal)?.color || 'var(--accent)')}"></i><small>Agenda</small></label>
+      ${Object.entries(colors).map(([id, c]) => `<label title="${esc(c.name)}"><input type="radio" name="colorId" value="${id}" ${x?.colorId === id ? 'checked' : ''}><i style="--c:${c.hex}"></i></label>`).join('')}</div></div>
+    <label class="field"><span>Descrição</span><textarea name="notes" rows="3">${esc(it.notes || '')}</textarea></label>
+    <button class="btn primary block">Salvar</button>
+    ${x ? '<button type="button" class="btn danger-ghost block" id="ag-del">Apagar evento</button>' : ''}
+    ${x?.link ? `<a class="btn ghost block" href="${esc(x.link)}" target="_blank" rel="noopener">Abrir no Google Agenda</a>` : ''}</form>`, {
+    onMount: (root) => {
+      const f = (n) => root.querySelector(`[name=${n}]`);
+      const sync = () => root.querySelectorAll('.ag-t').forEach((el) => { el.style.display = f('allDay').checked ? 'none' : ''; });
+      f('allDay').addEventListener('change', sync); sync();
+      // como no Google: mudar o início leva o fim junto
+      let prev = { d: f('date').value, t: f('time').value };
+      f('date').addEventListener('change', () => {
+        const d = f('date').value; if (!d) return;
+        const span = Math.round((parseKey(f('endDate').value || prev.d) - parseKey(prev.d)) / 86400000);
+        f('endDate').value = addDays(d, Math.max(0, span)); prev.d = d;
+        const r = f('repeat'); if (r) { const v = r.value; r.innerHTML = repeatOpts(d).map(([k, l]) => opt(k, l, v)).join(''); }
+      });
+      f('time').addEventListener('change', () => {
+        const t = f('time').value; if (!t) return;
+        if (!f('end').value || (f('endDate').value === f('date').value && f('end').value <= t) || !prev.t) f('end').value = addHour(t);
+        prev.t = t;
+      });
+      f('cal')?.addEventListener('change', () => { const i = root.querySelector('.ag-colors i'); const c = selCals().find((y) => y.id === f('cal').value); if (i && c) i.style.setProperty('--c', c.color); });
+      root.querySelector('#ag-del')?.addEventListener('click', () => confirmSheet('Apagar evento?', 'Ele também será apagado da sua Google Agenda.', 'Apagar', async () => {
+        try { await gapi('DELETE', '/eventos', { query: `?cal=${encodeURIComponent(x.cal)}&id=${encodeURIComponent(x.id)}` }); G.events = G.events.filter((y) => !(y.id === x.id && y.cal === x.cal)); gsave(); toast('Evento apagado'); }
+        catch (err) { toast(err.message); }
+        rerender();
+      }));
+    },
+    onSubmit: (fd, form) => {
+      const allDay = !!fd.get('allDay');
+      const data = { title: String(fd.get('title')).trim(), date: fd.get('date'), endDate: fd.get('endDate') || fd.get('date'), allDay,
+        time: allDay ? '' : fd.get('time') || '', end: allDay ? '' : fd.get('end') || '', location: String(fd.get('location') || '').trim(), notes: String(fd.get('notes') || '').trim(),
+        colorId: fd.get('colorId') || '', repeat: fd.get('repeat') || '', meet: !!fd.get('meet'), notify: !!fd.get('notify') };
+      if (!data.title || !data.date) return false;
+      if (data.endDate < data.date) data.endDate = data.date;
+      const r0 = fd.get('rem0'); const r1 = fd.get('rem1');
+      data.reminders = r0 === 'default' ? (r1 !== '' ? [Number(r1)] : 'default') : [r0, r1].filter((v) => v !== '' && v != null).map(Number);
+      const g = emails(fd.get('guests'));
+      if (String(g) !== String(x?.guests || [])) data.guests = g; // só manda a lista quando mudou
+      ui.agDay = data.date; ui.agMonth = null;
+      const btn = form.querySelector('button.primary'); btn.disabled = true; btn.textContent = 'Salvando no Google…';
+      const cal = x ? x.cal : fd.get('cal');
+      gapi('POST', '/eventos', { body: { ...data, cal, id: x?.id || '', tz: TZ() } })
+        .then(async () => { closeSheet(); toast('Salvo na Google Agenda ✓'); await gRefresh({ force: true, s: G.range?.s, e: G.range?.e }); })
+        .catch((err) => { btn.disabled = false; btn.textContent = 'Salvar'; toast(err.message); });
+      return false;
     },
   });
 }

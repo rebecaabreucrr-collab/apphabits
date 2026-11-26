@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Minha Rotina
  * Description:       App de rotina, hábitos e autocuidado dentro do WordPress. Abra em /minha-rotina/ (somente usuárias logadas).
- * Version: 1.10.1
+ * Version: 1.11.0
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            Rebeca
@@ -12,7 +12,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'MR_VERSION', '1.10.1' );
+define( 'MR_VERSION', '1.11.0' );
 define( 'MR_DIR', plugin_dir_path( __FILE__ ) );
 define( 'MR_URL', plugin_dir_url( __FILE__ ) );
 require_once MR_DIR . 'includes/google-agenda.php';
@@ -363,6 +363,8 @@ function mr_admin_page() {
 		'removed' => array( 'success', 'Backup removido do WordPress.' ),
 		'invalid' => array( 'error', 'Arquivo inválido. Use o backup gerado em Mais → Backup → Salvar backup.' ),
 		'saved'   => array( 'success', 'Configuração salva.' ),
+		'gasok'   => array( 'success', 'Ponte da Google Agenda ligada! Abra o app, vá em Agenda e marque as agendas.' ),
+		'gaserr'  => array( 'error', 'Não foi possível ligar a ponte da Google Agenda (veja o motivo na seção Google Agenda).' ),
 	);
 	?>
 	<div class="wrap">
