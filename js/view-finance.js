@@ -16,8 +16,22 @@ function readerCard() {
     ${busy ? `<div class="read-prog"><small>${esc(busy.msg)}</small>${bar(busy.v)}</div>` : `<div class="row gap wrap ai-actions">
       <label class="btn small primary grow">📷 Foto<input type="file" accept="image/*" hidden data-change="readFile"></label>
       <label class="btn small ghost grow">📎 Arquivo<input type="file" accept="application/pdf,.pdf,.csv,.ofx,.txt,text/plain,text/csv,image/*" hidden data-change="readFile"></label>
-    </div>`}</section>`;
+    </div>`}
+    ${(() => { const n = NM(); return `<button class="names-rule" data-act="namesEdit"><span>${n.on ? `Extrato com nomes: conta só <b>${esc(n.me)}</b> · <b>${esc(n.partner)} e ${esc(n.me)}</b> = metade` : 'Regra de nomes no extrato: desligada'}</span><span class="link">Alterar</span></button>`; })()}
+    </section>`;
 }
+const NM = () => (F().names ||= { on: true, me: 'Rebeca', partner: 'Edy' });
+A.namesEdit = () => {
+  const n = NM();
+  sheet('Nomes no extrato', `<form class="form">
+    <p class="small muted">Quando o extrato ou a fatura tiver nomes, o app conta só os lançamentos com o seu nome. Se tiver os dois nomes, conta a metade do valor. Os outros aparecem para você conferir, mas desmarcados.</p>
+    <label class="toggle-row"><span><b>Usar esta regra</b></span><input type="checkbox" class="switch" name="on" ${n.on ? 'checked' : ''}></label>
+    <label class="field"><span>Meu nome</span><input name="me" value="${esc(n.me)}" required></label>
+    <label class="field"><span>Divido as contas com</span><input name="partner" value="${esc(n.partner)}"></label>
+    <button class="btn primary block">Salvar</button></form>`, {
+    onSubmit: (fd) => { n.on = !!fd.get('on'); n.me = String(fd.get('me') || '').trim() || n.me; n.partner = String(fd.get('partner') || '').trim(); save(); toast('Regra de nomes salva'); },
+  });
+};
 C.readFile = async (el) => {
   const f = el.files?.[0]; el.value = '';
   if (!f || ui.readBusy) return;
@@ -47,11 +61,19 @@ const catOptions = (sel, kind) => ['despesa', 'receita'].filter((k) => !kind || 
   `<optgroup label="${k === 'despesa' ? 'Despesas' : 'Receitas'}">${cats(k).map((c) => opt(c.id, c.name, sel)).join('')}</optgroup>`).join('');
 
 function reviewSheet(list, message, text = '') {
+  const named = list.some((x) => x.who);
+  const sum = (w) => list.filter((x) => x.who === w);
+  const tot = (arr) => money(arr.reduce((a, x) => a + (x.kind === 'despesa' ? x.amount : -x.amount), 0));
+  const WHO = { meu: ['Seu', 'meu'], metade: ['Metade', 'metade'], outro: [`Só ${NM().partner}`, 'outro'], sem: ['Sem seu nome', 'outro'] };
   sheet(`Encontrei ${list.length} lançamento${list.length > 1 ? 's' : ''}`, `<form class="form">
     ${message ? `<p class="ai-msg">📷 ${esc(message)}</p>` : ''}
+    ${named ? `<div class="names-sum"><div><b>${sum('meu').length}</b><small>seus · ${tot(sum('meu'))}</small></div>
+      <div><b>${sum('metade').length}</b><small>divididos (metade) · ${tot(sum('metade'))}</small></div>
+      <div><b>${sum('outro').length + sum('sem').length}</b><small>não entram · confira abaixo</small></div></div>` : ''}
     ${text ? `<details class="read-text"><summary>Ver o texto que o app leu</summary><pre>${esc(text.slice(0, 4000))}</pre></details>` : ''}
-    ${list.map((x, i) => `<fieldset class="rev ${x.kind === 'receita' ? 'in' : ''}">
-      <label class="toggle-line"><input type="checkbox" name="inc" value="${i}" checked><span><b>Lançar este</b></span></label>
+    ${list.map((x, i) => `<fieldset class="rev ${x.kind === 'receita' ? 'in' : ''} ${x.include === false ? 'off' : ''}">
+      <label class="toggle-line"><input type="checkbox" name="inc" value="${i}" ${x.include === false ? '' : 'checked'}><span><b>Lançar este</b></span>${x.who ? `<span class="who who-${WHO[x.who][1]}">${WHO[x.who][0]}</span>` : ''}</label>
+      ${x.who === 'metade' ? `<small class="muted">Total ${money(x.total)} · entra a sua metade</small>` : ''}
       <div class="row gap"><label class="field grow"><span>Tipo</span><select name="kind_${i}">${opt('despesa', 'Despesa', x.kind)}${opt('receita', 'Receita', x.kind)}</select></label>
         <label class="field grow"><span>Valor (R$)</span><input name="amount_${i}" inputmode="decimal" value="${esc(String(x.amount).replace('.', ','))}"></label></div>
       <label class="field"><span>Descrição</span><input name="desc_${i}" value="${esc(x.desc || '')}"></label>

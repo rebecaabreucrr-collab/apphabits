@@ -824,3 +824,12 @@ details summary { cursor: pointer; padding: 8px 0; }
 .sl-low { color: var(--c-rose); background: color-mix(in srgb, var(--c-rose) 15%, transparent); }
 .sl-high { color: var(--c-sky); background: color-mix(in srgb, var(--c-sky) 15%, transparent); }
 .sl-prev { margin: 4px 0 10px; font-size: 14px; color: var(--muted); min-height: 1.2em; }
+/* finanças: regra de nomes no extrato */
+.names-rule { display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%; margin-top: 10px; padding: 10px 0 0; border: 0; border-top: 1px solid var(--line); background: none; text-align: left; font: inherit; font-size: 13px; color: var(--muted); cursor: pointer; }
+.names-sum { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+.names-sum div { padding: 8px; border-radius: 14px; background: var(--surface-2); text-align: center; } .names-sum b { display: block; font-size: 18px; } .names-sum small { font-size: 11.5px; color: var(--muted); }
+.who { margin-left: auto; padding: 2px 9px; border-radius: 99px; font-size: 12px; font-weight: 700; }
+.who-meu { color: var(--c-violet); background: color-mix(in srgb, var(--c-violet) 15%, transparent); }
+.who-metade { color: var(--c-sky); background: color-mix(in srgb, var(--c-sky) 15%, transparent); }
+.who-outro { color: var(--muted); background: color-mix(in srgb, var(--muted) 14%, transparent); }
+fieldset.rev:has(input[name=inc]:not(:checked)) { opacity: .55; }

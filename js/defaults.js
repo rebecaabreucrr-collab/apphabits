@@ -332,5 +332,7 @@ export const DEFAULT_FIN_CATEGORIES = [
   { id: 'fr-extra', name: 'Renda extra', icon: '💵', color: 'sky', kind: 'receita', limit: 0 },
   { id: 'fr-outros', name: 'Outras receitas', icon: '🐷', color: 'violet', kind: 'receita', limit: 0 },
 ];
-export const defaultFinance = () => ({ categories: DEFAULT_FIN_CATEGORIES.map((c) => ({ ...c })), totalLimit: 0, entries: [], bills: [] });
+export const defaultFinance = () => ({ categories: DEFAULT_FIN_CATEGORIES.map((c) => ({ ...c })), totalLimit: 0, entries: [], bills: [],
+  // extratos com nomes: conta só o meu; com os dois nomes, conta a metade
+  names: { on: true, me: 'Rebeca', partner: 'Edy' } });
 

@@ -208,7 +208,7 @@ export function parseOFX(text) {
     if (!v) continue;
     const d = tag('DTPOSTED'); const date = /^\d{8}/.test(d) ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}` : dateKey();
     const desc = titleCase((tag('MEMO') || tag('NAME') || 'Movimentação').slice(0, 40));
-    out.push({ kind: v < 0 ? 'despesa' : 'receita', amount: Math.abs(v), desc, date, status: 'pago', due: '', note: 'extrato' });
+    out.push({ kind: v < 0 ? 'despesa' : 'receita', amount: Math.abs(v), desc, date, status: 'pago', due: '', note: 'extrato', raw: `${tag('MEMO')} ${tag('NAME')}` });
   }
   return out;
 }
@@ -233,9 +233,65 @@ export function parseCSV(text) {
     const dm = (c[cD] || '').match(/(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})/) || (c[cD] || '').match(/(\d{4})-(\d{2})-(\d{2})/);
     const date = dm ? (dm[1].length === 4 ? `${dm[1]}-${dm[2]}-${dm[3]}` : toDate(dm[1], dm[2], dm[3])) : dateKey();
     if (/saldo/i.test(c[cDesc] || '')) continue;
-    out.push({ kind: v < 0 ? 'despesa' : 'receita', amount: Math.abs(v), desc: titleCase((c[cDesc] || 'Movimentação').slice(0, 40)), date: date || dateKey(), status: 'pago', due: '', note: 'extrato' });
+    out.push({ kind: v < 0 ? 'despesa' : 'receita', amount: Math.abs(v), desc: titleCase((c[cDesc] || 'Movimentação').slice(0, 40)), date: date || dateKey(), status: 'pago', due: '', note: 'extrato', raw: r });
   }
   return out;
+}
+
+/* ---------------- extrato ou fatura em PDF/foto: uma linha = um lançamento ---------------- */
+const MES = { jan: 1, fev: 2, mar: 3, abr: 4, mai: 5, jun: 6, jul: 7, ago: 8, set: 9, out: 10, nov: 11, dez: 12 };
+function lineDate(line) {
+  const full = datesIn(line)[0]; if (full) return full;
+  const today = dateKey(); const y = Number(today.slice(0, 4));
+  const fix = (d) => (d && d > today ? `${y - 1}${d.slice(4)}` : d); // dd/mm sem ano: no futuro = ano passado
+  let m = line.match(/(?:^|\s)(\d{1,2})[/.-](\d{1,2})(?![/.-]?\d)/);
+  if (m) return fix(toDate(m[1], m[2], y));
+  m = norm(line).match(/(?:^|\s)(\d{1,2})\s*(?:de\s*)?(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-z]*\b/);
+  if (m) return fix(toDate(m[1], MES[m[2]], y));
+  return null;
+}
+export function parseStatement(text) {
+  const lines = String(text).split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const cfg = state.finance.names || {};
+  const nameRe = [cfg.me, cfg.partner].filter(Boolean).map((n) => new RegExp(`\\b${norm(n).trim()}`));
+  const isCard = /fatura|cartao de credito|limite de credito|total da fatura/.test(norm(text));
+  const out = []; let owner = '';
+  for (const line of lines) {
+    const vals = [...line.matchAll(MONEY)].map((m) => m[1]);
+    const date = lineDate(line);
+    if (!vals.length || !date) {
+      // cabeçalho de seção (ex.: "REBECA ABREU - final 1234") vale para as linhas de baixo
+      if (!vals.length && nameRe.some((re) => re.test(norm(line)))) owner = line;
+      continue;
+    }
+    if (/saldo|total|vencimento|limite|pagamento minimo|valor minimo|juros|encargos|cotacao|iof previsto/.test(norm(line))) continue;
+    const raw = vals[vals.length - 1]; let v = toNumber(raw);
+    if (/\bD\b\s*$/.test(line)) v = -Math.abs(v); else if (/\bC\b\s*$/.test(line)) v = Math.abs(v);
+    const kind = isCard ? (v < 0 || /estorno|credito de|pagamento recebido/.test(norm(line)) ? 'receita' : 'despesa') : (v < 0 ? 'despesa' : 'receita');
+    let desc = line.replace(MONEY, ' ').replace(DATE, ' ').replace(/(?:^|\s)\d{1,2}[/.-]\d{1,2}(?=\s|$)/g, ' ')
+      .replace(/(?:^|\s)\d{1,2}\s*(?:de\s*)?(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-zç]*\b/gi, ' ').replace(/\s[DC]\s*$/, ' ').replace(/R\$/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!desc || desc.length < 2) desc = 'Movimentação';
+    out.push({ kind, amount: Math.abs(v), desc: titleCase(desc.slice(0, 40)), date, status: 'pago', due: '', note: isCard ? 'fatura' : 'extrato', raw: `${line} ${owner}` });
+  }
+  return out.length >= 3 ? out : [];
+}
+
+/* ---------------- nomes no extrato: só o meu conta; com os dois nomes, metade ---------------- */
+export function applyNames(entries) {
+  const cfg = state.finance.names || {};
+  if (cfg.on === false || !cfg.me) return entries;
+  const has = (txt, n) => !!n && new RegExp(`\\b${norm(n).trim()}`).test(norm(txt));
+  const tagged = entries.map((e) => ({ e, me: has(e.raw || e.desc, cfg.me), pa: has(e.raw || e.desc, cfg.partner) }));
+  if (!tagged.some((x) => x.me || x.pa)) return entries; // arquivo sem nomes: segue normal
+  const brl = (v) => v.toFixed(2).replace('.', ',');
+  return tagged.map(({ e, me, pa }) => {
+    if (me && pa) {
+      const half = Math.round((e.amount / 2) * 100) / 100;
+      return { ...e, amount: half, total: e.amount, who: 'metade', include: true, note: `${e.note ? e.note + ' · ' : ''}dividido com ${cfg.partner} (total R$ ${brl(e.amount)})` };
+    }
+    if (me) return { ...e, who: 'meu', include: true };
+    return { ...e, who: pa ? 'outro' : 'sem', include: false };
+  });
 }
 
 /** lê uma foto ou arquivo e devolve { entries, text } com categoria sugerida */
@@ -245,15 +301,17 @@ export async function readFinanceFile(file, progress) {
   if (file.type.startsWith('image/') || /\.(jpe?g|png|heic|webp)$/.test(name)) {
     progress?.('Preparando a foto…', 0.02);
     text = await ocr(await prepImage(file), progress);
-    entries = parseDocText(text);
+    entries = parseStatement(text); if (!entries.length) entries = parseDocText(text);
   } else if (file.type === 'application/pdf' || name.endsWith('.pdf')) {
     text = await pdfText(file, progress);
-    entries = /<STMTTRN>/i.test(text) ? parseOFX(text) : parseDocText(text);
+    entries = /<STMTTRN>/i.test(text) ? parseOFX(text) : parseStatement(text);
+    if (!entries.length) entries = parseDocText(text);
   } else {
     text = await file.text();
-    entries = /<STMTTRN>/i.test(text) || name.endsWith('.ofx') ? parseOFX(text) : (name.endsWith('.csv') || /;|,/.test(text.split('\n')[0]) ? parseCSV(text) : parseDocText(text));
+    entries = /<STMTTRN>/i.test(text) || name.endsWith('.ofx') ? parseOFX(text) : (name.endsWith('.csv') || /;|,/.test(text.split('\n')[0]) ? parseCSV(text) : (parseStatement(text).length ? parseStatement(text) : parseDocText(text)));
   }
   progress?.('Pronto!', 1);
   // em extrato (várias linhas) cada lançamento olha só a própria descrição
+  entries = applyNames(entries);
   return { text, entries: entries.map((e) => ({ ...e, cat: guessCat(e.desc, e.kind, entries.length === 1 ? text : '') })) };
 }
