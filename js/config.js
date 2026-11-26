@@ -9,4 +9,4 @@ export const CONFIG = {
 };
 
 // número da versão (aparece em Mais) — muda a cada atualização do app
-export const APP_VERSION = 44;
+export const APP_VERSION = 46;

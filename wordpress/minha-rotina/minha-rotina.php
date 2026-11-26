@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Minha Rotina
  * Description:       App de rotina, hábitos e autocuidado dentro do WordPress. Abra em /minha-rotina/ (somente usuárias logadas).
- * Version: 1.9.2
+ * Version: 1.12.0
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            Rebeca
@@ -12,7 +12,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'MR_VERSION', '1.9.2' );
+define( 'MR_VERSION', '1.12.0' );
 define( 'MR_DIR', plugin_dir_path( __FILE__ ) );
 define( 'MR_URL', plugin_dir_url( __FILE__ ) );
 require_once MR_DIR . 'includes/google-agenda.php';
@@ -276,7 +276,23 @@ function mr_render_app() {
 		$html
 	);
 
+	// cada versão do plugin usa endereços novos para os arquivos do app (?v=...), para que nem o
+	// navegador nem o cache do servidor/CDN entreguem uma versão antiga depois de atualizar
+	$v    = rawurlencode( MR_VERSION . '-' . (int) @filemtime( MR_DIR . 'app/js/app.js' ) ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+	$html = str_replace(
+		array( 'css/styles.css"', 'js/app.js"' ),
+		array( 'css/styles.css?v=' . $v . '"', 'js/app.js?v=' . $v . '"' ),
+		$html
+	);
+	$imports = array();
+	foreach ( (array) glob( MR_DIR . 'app/js/*.js' ) as $f ) {
+		$u             = $app . 'js/' . basename( $f );
+		$imports[ $u ] = $u . '?v=' . $v;
+	}
+
 	$head = '<meta name="robots" content="noindex, nofollow">';
+	// os "import" entre os arquivos do app também pegam a versão nova
+	$head .= '<script type="importmap">' . wp_json_encode( array( 'imports' => $imports ), JSON_UNESCAPED_SLASHES ) . '</script>';
 
 	// carrega o backup no aparelho na primeira vez (e quando um backup novo for enviado)
 	$data  = get_option( MR_OPT_DATA );
@@ -347,6 +363,8 @@ function mr_admin_page() {
 		'removed' => array( 'success', 'Backup removido do WordPress.' ),
 		'invalid' => array( 'error', 'Arquivo inválido. Use o backup gerado em Mais → Backup → Salvar backup.' ),
 		'saved'   => array( 'success', 'Configuração salva.' ),
+		'gasok'   => array( 'success', 'Ponte da Google Agenda ligada! Abra o app, vá em Agenda e marque as agendas.' ),
+		'gaserr'  => array( 'error', 'Não foi possível ligar a ponte da Google Agenda (veja o motivo na seção Google Agenda).' ),
 	);
 	?>
 	<div class="wrap">

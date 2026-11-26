@@ -1,6 +1,5 @@
-// Agenda: mostra só as agendas do Google escolhidas (ex.: Pessoal, Rotina, Aniversários) e permite
-// criar, editar e apagar eventos nelas pelo app (API do Google Agenda, pelo plugin do WordPress).
-// Sem o WordPress/Google conectado, guarda compromissos só no app.
+// Agenda: mostra as agendas do Google escolhidas (ex.: Compromissos pessoais, Rotina, Aniversários),
+// só para ver — criar e mudar compromissos é no próprio Google Agenda (o app atualiza sozinho).
 import { state } from './store.js';
 import { esc, dateKey, addDays, parseKey, fmtLong, fmtShort, pad, MONTHS } from './utils.js';
 import { A, C, ui, sheet, rerender, toast, confirmSheet } from './ui.js';
@@ -107,10 +106,10 @@ function itemRow(x) {
 }
 /** lista lateral: Minhas agendas (posso editar) e Outras agendas (só leitura), com a cor de cada uma */
 function googleCard() {
-  if (!wpOn()) return `<section class="card ag-side"><h2>Google Agenda</h2><p class="small muted">A agenda vem da sua Google Agenda. Para ver aqui, abra o app pelo endereço do WordPress (seusite/minha-rotina/) — no celular também, e adicione à Tela de Início por esse endereço.</p></section>`;
+  if (!wpOn()) return `<section class="card ag-side"><h2>Google Agenda</h2><p class="small muted">Para usar a sua Google Agenda aqui, abra o app pelo endereço do WordPress (seusite/minha-rotina/). Por enquanto, os compromissos ficam só no app.</p></section>`;
   const st = G.status;
   if (!st) return `<section class="card ag-side"><p class="small muted">Verificando a Google Agenda…</p></section>`;
-  if (!st.configured) return `<section class="card ag-side"><h2>Google Agenda</h2><p class="small muted">Falta configurar a ligação com o Google no painel do WordPress: <b>Minha Rotina → Google Agenda</b> (tem o passo a passo lá). Depois volte aqui e toque em Conectar.</p></section>`;
+  if (!st.configured) return `<section class="card ag-side"><h2>Google Agenda</h2><p class="small muted">Falta ligar o Google. Se você usa o <b>Recontar Gestão</b>, conecte a Google Agenda por lá e volte aqui. Senão, veja o passo a passo no painel do WordPress: <b>Minha Rotina → Google Agenda</b>. Depois volte aqui e toque em Conectar.</p></section>`;
   if (!st.connected) return `<section class="card ag-side"><h2>Conectar a Google Agenda</h2>
     <p class="small muted">Você vai entrar na sua conta Google e permitir o acesso. Se aparecer “app não verificado”, toque em <b>Avançado → Acessar</b> (é o seu próprio app).</p>
     <a class="btn primary block" href="${esc(st.connect)}">Conectar com o Google</a>
@@ -123,8 +122,8 @@ function googleCard() {
     ${other.length ? `<h4>Outras agendas</h4>${other.map(row).join('')}` : ''}
     ${G.error ? `<p class="small err">${esc(G.error)}</p>` : ''}
     <details class="ag-conn"><summary>Conexão com o Google</summary>
-      <p class="small muted">Conectada (só visualização).${G.at ? ` Atualizado às ${pad(new Date(G.at).getHours())}:${pad(new Date(G.at).getMinutes())}.` : ''} Só as agendas marcadas aparecem no app. Para criar ou mudar compromissos, use o Google Agenda — o app atualiza sozinho.</p>
-      <div class="row gap wrap"><button class="btn small" data-act="agRefresh">🔄 Atualizar</button><button class="btn small ghost" data-act="agDisconnect">Desconectar</button></div></details>
+      <p class="small muted">Conectada${st.mode === 'ponte' ? ` pela ligação do Recontar Gestão${st.account ? ` (${esc(st.account)})` : ''}` : st.account ? ` (${esc(st.account)})` : ''}.${G.at ? ` Atualizado às ${pad(new Date(G.at).getHours())}:${pad(new Date(G.at).getMinutes())}.` : ''} Só as agendas marcadas aparecem no app. A agenda aqui é só para ver: para criar ou mudar compromissos, use o Google Agenda — o app atualiza sozinho.</p>
+      <div class="row gap wrap"><button class="btn small" data-act="agRefresh">🔄 Atualizar</button>${st.mode === 'ponte' ? '' : '<button class="btn small ghost" data-act="agDisconnect">Desconectar</button>'}</div></details>
   </section>`;
 }
 function renderAgenda(p) {
@@ -179,6 +178,8 @@ function eventSheet(x) {
   sheet(x.title, `<p class="muted">${fmtLong(x.date)} · ${esc(when(x))}</p>
     ${x.calName ? `<p class="ag-calname"><i class="ag-dot" style="background:${x.color || 'var(--accent)'}"></i>${esc(x.calName)}</p>` : ''}
     ${x.location ? `<p>📍 ${esc(x.location)}</p>` : ''}${x.notes ? `<p class="note">${esc(x.notes).replace(/\n/g, '<br>')}</p>` : ''}
+    ${x.meet ? `<p><a class="btn block" href="${esc(x.meet)}" target="_blank" rel="noopener">🎥 Entrar no Google Meet</a></p>` : ''}
+    ${x.guests?.length ? `<p class="small muted">Convidados: ${x.guests.map(esc).join(', ')}</p>` : ''}
     ${x.src === 'google' ? `<p class="small muted">Para mudar ou apagar, use o Google Agenda.</p><a class="btn primary block" href="${esc(gl)}" target="_blank" rel="noopener">Abrir no Google Agenda</a>` : ''}`);
 }
 A.agOpen = (el) => {
