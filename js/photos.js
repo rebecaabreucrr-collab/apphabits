@@ -91,3 +91,20 @@ if (typeof MutationObserver !== 'undefined') {
   new MutationObserver((ms) => { if (ms.some((m) => m.addedNodes.length)) hydratePhotos(); }).observe(document.documentElement, { childList: true, subtree: true });
 }
 window.addEventListener('online', () => flushPhotos());
+
+/** recorta um pedaço (frações 0–1 de x, y, largura, altura) e reduz o resultado */
+export function cropPhoto(dataUrl, r, max = 720) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const sx = Math.max(0, r.x * img.naturalWidth), sy = Math.max(0, r.y * img.naturalHeight);
+      const sw = Math.min(img.naturalWidth - sx, r.w * img.naturalWidth), sh = Math.min(img.naturalHeight - sy, r.h * img.naturalHeight);
+      const k = Math.min(1, max / Math.max(sw, sh));
+      const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(sw * k)); c.height = Math.max(1, Math.round(sh * k));
+      const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, sx, sy, sw, sh, 0, 0, c.width, c.height);
+      resolve(c.toDataURL('image/jpeg', 0.8));
+    };
+    img.onerror = () => reject(new Error('Não consegui recortar a foto.'));
+    img.src = dataUrl;
+  });
+}

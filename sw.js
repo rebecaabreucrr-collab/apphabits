@@ -1,6 +1,6 @@
 // Service worker: sempre busca a versão mais nova quando há internet;
 // sem internet, abre a cópia guardada no aparelho.
-const CACHE = 'minharotina-v41';
+const CACHE = 'minharotina-v42';
 const ASSETS = [
   './', './index.html', './manifest.webmanifest', './css/styles.css',
   './js/app.js', './js/utils.js', './js/store.js', './js/defaults.js', './js/logic.js', './js/ui.js', './js/forms.js',
