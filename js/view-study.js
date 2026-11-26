@@ -39,19 +39,22 @@ function beep() {
   } catch { /* sem som */ }
   navigator.vibrate?.([200, 100, 200]);
 }
-function pomoCard(cfg, P, pre) {
+/** a Leitura também usa o pomodoro (mesmo motor) */
+export const READ_POMO = { key: 'reading', verb: 'ler', grad: 'orange' };
+export function pomoCard(cfg, P, pre) {
   const p = POMO(cfg); const t = state[cfg.key].timer;
   const active = !!p.endsAt; const paused = p.left != null; const fresh = !active && !paused;
   const btns = fresh ? `<button class="btn white grow big" data-act="${P}PomoStart">▶︎ Começar foco de ${focusMin('foco')} min</button>`
     : `${active ? `<button class="btn glass grow" data-act="${P}PomoPause">⏸ Pausar</button>` : `<button class="btn glass grow" data-act="${P}PomoResume">▶︎ Continuar</button>`}
        ${p.phase === 'pausa' ? `<button class="btn glass grow" data-act="${P}PomoSkip">⏭ Pular pausa</button>` : ''}
-       <button class="btn white grow" data-act="${P}Finish">⏹ Finalizar</button>`;
+       <button class="btn white grow" data-act="${P}PomoFinish">⏹ Finalizar</button>`;
+  const canReset = !fresh || p.cycles > 0 || t.acc > 0;
   return `<section class="card timer-card pomo bg-grad-${p.phase === 'pausa' ? 'sky' : cfg.grad} ${active ? 'running' : ''}">
     <small>${p.phase === 'pausa' ? `☕ Pausa · ${focusMin('pausa')} min` : `🎯 Foco · ciclo ${p.cycles + 1}`}${paused ? ' (pausado)' : ''}</small>
     <div class="timer" data-pomo="${cfg.key}">${fmtTimer(pomoRemaining(p))}</div>
     <small>Tempo focado: <b data-track-timer="${cfg.key}">${fmtTimer(t.acc + (t.running && t.startedAt ? (Date.now() - t.startedAt) / 1000 : 0))}</b> · ${p.cycles} ciclo(s) completo(s)</small>
     ${pre ? `<small class="st-pre">Retomando: <b>${esc(pre.materia)}${pre.assunto ? ' · ' + esc(pre.assunto) : ''}</b></small>` : ''}
-    <div class="row gap mt">${btns}</div>
+    <div class="row gap mt">${btns}${canReset ? `<button class="btn glass" data-act="${P}PomoReset" aria-label="Zerar o pomodoro">↺ Zerar</button>` : ''}</div>
     <div class="pomo-set"><label>Foco <select data-change="focusSet" data-k="foco">${[15, 20, 25, 30, 40, 45, 50, 60].map((m) => `<option value="${m}" ${m === focusMin('foco') ? 'selected' : ''}>${m} min</option>`).join('')}</select></label>
       <label>Pausa <select data-change="focusSet" data-k="pausa">${[3, 5, 10, 15, 20].map((m) => `<option value="${m}" ${m === focusMin('pausa') ? 'selected' : ''}>${m} min</option>`).join('')}</select></label></div>
   </section>`;
@@ -59,9 +62,22 @@ function pomoCard(cfg, P, pre) {
 C.focusSet = (el) => { (state.focus ||= {})[el.dataset.k] = Number(el.value); save(); toast(`${el.dataset.k === 'foco' ? 'Foco' : 'Pausa'}: ${el.value} min`); rerender(); };
 
 /** chamado a cada segundo: troca foco ↔ pausa na hora certa (mesmo se o app ficou em segundo plano) */
+/** botões do pomodoro (Estudo, Inglês e Leitura) */
+export function pomoActions(cfg, P, { start, pause, finish }) {
+  A[P + 'Mode'] = (el) => { const p = POMO(cfg); const on = el.dataset.m === 'pomo'; if (p.on === on) return; if (!on) pomoStop(cfg); p.on = on; save(); rerender(); };
+  A[P + 'PomoStart'] = () => { const p = POMO(cfg); p.phase = 'foco'; p.endsAt = Date.now() + focusMin('foco') * 60000; p.left = null; start(); };
+  A[P + 'PomoPause'] = () => { const p = POMO(cfg); if (!p.endsAt) return; p.left = p.endsAt - Date.now(); p.endsAt = null; if (p.phase === 'foco') pause(); else { save(); rerender(); } };
+  A[P + 'PomoResume'] = () => { const p = POMO(cfg); if (p.left == null) return; p.endsAt = Date.now() + p.left; p.left = null; if (p.phase === 'foco') start(); else { save(); rerender(); } };
+  A[P + 'PomoSkip'] = () => { const p = POMO(cfg); p.phase = 'foco'; p.endsAt = Date.now() + focusMin('foco') * 60000; p.left = null; start(); };
+  A[P + 'PomoFinish'] = () => { pause(); pomoStop(cfg); finish(); };
+  A[P + 'PomoReset'] = () => confirmSheet('Zerar o pomodoro?', 'O ciclo volta para o começo e o tempo focado que ainda não foi salvo é descartado.', 'Zerar', () => {
+    pomoStop(cfg); Object.assign(state[cfg.key].timer, { running: false, startedAt: null, acc: 0 }); save(); toast('Pomodoro zerado');
+  });
+}
+
 export function tickPomodoros() {
   const now = Date.now();
-  for (const cfg of Object.values(TRACKS)) {
+  for (const cfg of [...Object.values(TRACKS), READ_POMO]) {
     const p = state[cfg.key]?.pomo; if (!p?.on) continue;
     document.querySelectorAll(`[data-pomo="${cfg.key}"]`).forEach((el) => { el.textContent = fmtTimer(pomoRemaining(p)); });
     if (!p.endsAt || now < p.endsAt) continue;
@@ -230,11 +246,7 @@ function makeTrack(cfg) {
   A[P + 'Reset'] = () => confirmSheet('Zerar cronômetro?', 'O tempo atual será descartado.', 'Zerar', () => { Object.assign(T(), { running: false, startedAt: null, acc: 0 }); ui[P + 'Prefill'] = null; save(); });
   A[P + 'Finish'] = () => { A[P + 'Pause'](); pomoStop(cfg); entrySheet(undefined, { seconds: elapsed(), fromTimer: true, prefill: ui[P + 'Prefill'] }); };
   // pomodoro
-  A[P + 'Mode'] = (el) => { const p = POMO(cfg); const on = el.dataset.m === 'pomo'; if (p.on === on) return; if (!on) pomoStop(cfg); p.on = on; save(); rerender(); };
-  A[P + 'PomoStart'] = () => { const p = POMO(cfg); p.phase = 'foco'; p.endsAt = Date.now() + focusMin('foco') * 60000; p.left = null; A[P + 'Start'](); };
-  A[P + 'PomoPause'] = () => { const p = POMO(cfg); if (!p.endsAt) return; p.left = p.endsAt - Date.now(); p.endsAt = null; if (p.phase === 'foco') A[P + 'Pause'](); else { save(); rerender(); } };
-  A[P + 'PomoResume'] = () => { const p = POMO(cfg); if (p.left == null) return; p.endsAt = Date.now() + p.left; p.left = null; if (p.phase === 'foco') A[P + 'Start'](); else { save(); rerender(); } };
-  A[P + 'PomoSkip'] = () => { const p = POMO(cfg); p.phase = 'foco'; p.endsAt = Date.now() + focusMin('foco') * 60000; p.left = null; A[P + 'Start'](); };
+  pomoActions(cfg, P, { start: () => A[P + 'Start'](), pause: () => A[P + 'Pause'](), finish: () => A[P + 'Finish']() });
   A[P + 'New'] = () => entrySheet(undefined, { prefill: ui[P + 'Prefill'] });
   A[P + 'Edit'] = (el) => entrySheet(S().sessions.find((x) => x.id === el.dataset.id));
   A[P + 'Resume'] = (el) => {

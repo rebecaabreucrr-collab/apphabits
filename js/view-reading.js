@@ -4,6 +4,7 @@ import { esc, dateKey, fmtTimer, fmtMinutes, fmtShort, uid } from './utils.js';
 import { A, C, ui, sheet, rerender, toast, empty, pageHead, bar, opt, ring, go, confirmSheet } from './ui.js';
 import { timerElapsed, readingDay, bookStats, markTypeDone } from './logic.js';
 import { iconize } from './icons.js';
+import { READ_POMO, pomoCard, pomoActions } from './view-study.js';
 import { durationField, readDuration, timeRangeFields, rangeFromNow, bindTimeRange, fmtRange } from './forms.js';
 
 const T = () => state.reading.timer;
@@ -39,13 +40,14 @@ function renderReading() {
   const bookCard = bookCardFn;
   return `<header class="page-head top"><h1>Leitura</h1><div class="ph-right"><button class="link" data-act="bookNew">+ Livro</button></div></header>
   ${subnav('leitura')}
-  <section class="card timer-card bg-grad-orange ${t.running ? 'running' : ''}">
+  <div class="seg mode-seg">${[['crono', '⏱️ Cronômetro'], ['pomo', '⏰ Pomodoro']].map(([m, l]) => `<button class="${(state.reading.pomo?.on ? 'pomo' : 'crono') === m ? 'on' : ''}" data-act="readMode" data-m="${m}">${l}</button>`).join('')}</div>
+  ${state.reading.pomo?.on ? pomoCard(READ_POMO, 'read', null) : `<section class="card timer-card bg-grad-orange ${t.running ? 'running' : ''}">
     <small>${t.running ? 'Lendo agora…' : el > 0 ? 'Pausado' : 'Cronômetro de leitura'}</small>
     <div class="timer" data-timer>${fmtTimer(el)}</div>
-    ${state.books.length ? `<select class="glass-select" data-change="readBook">${opt('', 'Escolha o livro', '')}${state.books.filter((x) => !x.finished || x.id === state.reading.activeBookId).map((x) => opt(x.id, x.title, state.reading.activeBookId)).join('')}</select>`
-      : '<button class="btn glass block" data-act="bookNew">+ Cadastrar o livro que está lendo</button>'}
     <div class="row gap mt">${btns}</div>
-  </section>
+  </section>`}
+  ${state.books.length ? `<label class="field read-book"><span>Livro que estou lendo</span><select data-change="readBook">${opt('', 'Escolha o livro', '')}${state.books.filter((x) => !x.finished || x.id === state.reading.activeBookId).map((x) => opt(x.id, x.title, state.reading.activeBookId)).join('')}</select></label>`
+    : '<button class="btn ghost block" data-act="bookNew">+ Cadastrar o livro que está lendo</button>'}
   <div class="stats three">
     <div class="stat"><span>⏱️</span><b>${fmtMinutes(day.sec / 60)}</b><small>hoje</small></div>
     <div class="stat"><span>📄</span><b>${day.pages}</b><small>páginas hoje</small></div>
@@ -130,6 +132,7 @@ A.timerReset = () => confirmSheet('Zerar cronômetro?', 'O tempo atual será des
 });
 A.timerFinish = () => { A.timerPause(); sessionSheet({ seconds: timerElapsed(), fromTimer: true }); };
 A.manualSession = () => sessionSheet();
+pomoActions(READ_POMO, 'read', { start: () => A.timerStart(), pause: () => A.timerPause(), finish: () => sessionSheet({ seconds: timerElapsed(), fromTimer: true }) });
 A.sessionDel = (el) => confirmSheet('Excluir registro?', 'Esta sessão de leitura e as anotações serão apagadas.', 'Excluir', () => {
   state.reading.sessions = state.reading.sessions.filter((s) => s.id !== el.dataset.id); save();
 });

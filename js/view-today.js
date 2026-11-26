@@ -92,9 +92,18 @@ function subtitle(t, k) {
   return parts.join(' · ');
 }
 
+/** tarefas criadas à mão com "inglês", "estudar" ou "leitura" no nome também abrem o cronômetro */
+function nameRoute(t) {
+  if (t.kind === 'med' || t.type === 'remedio') return null;
+  const nm = String(t.title || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  if (/\bingles\b|\benglish\b/.test(nm)) return '#/ingles';
+  if (/^estud/.test(nm)) return '#/estudo';
+  if (/^(ler|leitura)\b/.test(nm)) return '#/leitura';
+  return null;
+}
 function taskRow(t, k, highlight) {
   const done = !!isDone(t, k);
-  const special = ['treino', 'skincare', 'cabelo', 'leitura', 'palavra', 'remedio', 'estudo', 'ingles'].includes(t.type);
+  const special = ['treino', 'skincare', 'cabelo', 'leitura', 'palavra', 'remedio', 'estudo', 'ingles'].includes(t.type) || !!nameRoute(t);
   return `<li class="task ${done ? 'done' : ''} ${highlight ? 'now' : ''}">
     <div class="t-time">${esc(t.time || '—')}</div>
     <button class="t-main" data-act="openTask" data-id="${t.id}">
@@ -464,6 +473,7 @@ A.openTask = (el) => {
   if (t.type === 'remedio') return go('#/remedios');
   if (t.type === 'estudo') return go('#/estudo');
   if (t.type === 'ingles') return go('#/ingles');
+  const nr = nameRoute(t); if (nr) return go(nr);
   const done = !!isDone(t, k);
   sheet(`${t.icon || ''} ${t.title}`, `
     <p class="muted">${t.time ? `${t.time}${t.end ? ' – ' + t.end : ''} · ` : ''}${state.routine.includes(t) ? 'Rotina fixa (' + t.days.map((d) => WD[d]).join(', ') + ')' : 'Só neste dia'}</p>

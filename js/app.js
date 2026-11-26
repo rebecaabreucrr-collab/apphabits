@@ -128,7 +128,7 @@ setInterval(() => {
   tickPomodoros();
   document.querySelectorAll('[data-track-timer]').forEach((el) => {
     const key = el.dataset.trackTimer;
-    if (state[key]?.timer.running) el.textContent = fmtTimer(key === 'study' ? studyElapsed() : englishElapsed());
+    if (state[key]?.timer.running) el.textContent = fmtTimer(key === 'study' ? studyElapsed() : key === 'reading' ? timerElapsed() : englishElapsed());
   });
 }, 1000);
 
