@@ -165,7 +165,7 @@ function tabResumo(m) {
   const pend = F().entries.filter((e) => e.status === 'pendente').sort((a, b) => (a.due || '').localeCompare(b.due || '')).slice(0, 4);
   const year = m.slice(0, 4);
   const months = Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}`).map((mm) => ({ mm, ...monthSummary(mm) })).filter((x) => x.entries.length);
-  return `${readerCard()}
+  return `
   <div class="stats three fin-stats">
     <div class="stat"><span>➕</span><b>${money(s.receitas)}</b><small>receitas</small></div>
     <div class="stat"><span>➖</span><b>${money(s.despesas)}</b><small>despesas</small></div>
