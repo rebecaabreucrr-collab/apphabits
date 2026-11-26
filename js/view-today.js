@@ -12,6 +12,7 @@ import { goalsTile } from './view-goals.js';
 import { sleepTile } from './view-sleep.js';
 import { streakBadge, celebrate } from './view-streaks.js';
 import { agendaTile } from './view-agenda.js';
+import { looksTile } from './view-looks.js';
 import { MASKS, PHRASES } from './defaults.js';
 import { taskSheet, avatarHtml } from './forms.js';
 import { bar } from './ui.js';
@@ -241,6 +242,7 @@ function tileMap(k) {
   T.metas = goalsTile();
   T.sono = sleepTile();
   T.agenda = agendaTile();
+  T.looks = looksTile();
   { const fm = monthSummary(thisMonth()); const tl = Number(state.finance.totalLimit) || 0;
     const next = state.finance.entries.filter((e) => e.status === 'pendente' && e.kind === 'despesa').sort((a, b) => (a.due || '').localeCompare(b.due || ''))[0];
     T.financas = `<a class="tile t-violet" href="#/financas"><span class="tile-ico">👛</span><div><b>${money(fm.saldo)}</b>

@@ -41,6 +41,7 @@ function renderMore() {
   </section>
   <h3 class="sec-title">Organizar</h3>
   <section class="card menu">
+    ${item('#/looks', '👗', 'Looks', 'Guarda-roupa, looks, look do dia e mala', 'rose')}
     ${item('#/agenda', '📅', 'Agenda', 'Compromissos e Google Agenda', 'sky')}
     ${item('#/metas', '🎯', 'Metas e desafio', 'Objetivos do mês e do ano, desafio de 20 dias', 'violet')}
     ${item('#/sono', '🌙', 'Sono', 'Horários, qualidade e meta de horas', 'sky')}
@@ -119,12 +120,12 @@ A.setLayout = (el) => { state.settings.layout = el.dataset.l; save(); rerender()
 A.setTheme = (el) => { state.settings.theme = el.dataset.t; save(); rerender(); };
 
 /* ---------- Abas ---------- */
-const OPTIONAL_TABS = ['agenda', 'metas', 'desafio', 'estudo', 'ingles', 'financas', 'relatorio', 'sono', 'leitura', 'cuidados', 'ciclo', 'remedios', 'treinos', 'rotina'];
+const OPTIONAL_TABS = ['agenda', 'looks', 'metas', 'desafio', 'estudo', 'ingles', 'financas', 'relatorio', 'sono', 'leitura', 'cuidados', 'ciclo', 'remedios', 'treinos', 'rotina'];
 function renderTabs() {
   const on = state.settings.tabs;
   const off = OPTIONAL_TABS.filter((id) => !on.some((t) => t.id === id));
   return `${pageHead('Abas do menu', '#/mais')}
-  <p class="sub">Escolha até 5 abas para a barra de baixo, mude a ordem e o nome. "Hoje" e "Mais" ficam sempre.</p>
+  <p class="sub">Escolha até 6 abas para a barra de baixo, mude a ordem e o nome. "Hoje" e "Mais" ficam sempre.</p>
   <section class="card"><h2>Na barra</h2><ul class="mini-list tabs-edit">
     <li class="fixed"><span class="t-icon bg-soft-rose">${svg(TAB_DEFS.hoje.icon)}</span><div class="grow"><b>Hoje</b><small>fixa</small></div></li>
     ${on.map((t, i) => `<li><span class="t-icon bg-soft-violet">${svg(TAB_DEFS[t.id].icon)}</span>
@@ -139,7 +140,7 @@ function renderTabs() {
   <button class="btn ghost block" data-act="tabsReset">Voltar ao padrão</button>`;
 }
 A.tabOn = (el) => {
-  if (state.settings.tabs.length >= 5) return toast('Máximo de 5 abas — tire uma antes');
+  if (state.settings.tabs.length >= 6) return toast('Máximo de 6 abas — tire uma antes');
   state.settings.tabs.push({ id: el.dataset.id, label: TAB_DEFS[el.dataset.id].label }); save(); rerender();
 };
 A.tabOff = (el) => { state.settings.tabs.splice(Number(el.dataset.i), 1); save(); rerender(); };

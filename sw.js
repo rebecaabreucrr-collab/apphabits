@@ -1,11 +1,11 @@
 // Service worker: sempre busca a versão mais nova quando há internet;
 // sem internet, abre a cópia guardada no aparelho.
-const CACHE = 'minharotina-v39';
+const CACHE = 'minharotina-v40';
 const ASSETS = [
   './', './index.html', './manifest.webmanifest', './css/styles.css',
   './js/app.js', './js/utils.js', './js/store.js', './js/defaults.js', './js/logic.js', './js/ui.js', './js/forms.js',
   './js/view-today.js', './js/view-care.js', './js/view-reading.js', './js/view-challenge.js', './js/view-more.js',
-  './js/cycle.js', './js/view-cycle.js', './js/icons.js', './js/view-meds.js', './js/view-study.js', './js/config.js', './js/auth.js', './js/view-auth.js', './js/view-report.js', './js/finance.js', './js/view-finance.js', './js/finance-import.js', './js/view-goals.js', './js/view-sleep.js', './js/sync.js', './js/view-streaks.js', './js/ical.js', './js/view-agenda.js',
+  './js/cycle.js', './js/view-cycle.js', './js/icons.js', './js/view-meds.js', './js/view-study.js', './js/config.js', './js/auth.js', './js/view-auth.js', './js/view-report.js', './js/finance.js', './js/view-finance.js', './js/finance-import.js', './js/view-goals.js', './js/view-sleep.js', './js/sync.js', './js/view-streaks.js', './js/ical.js', './js/view-agenda.js', './js/photos.js', './js/view-looks.js',
   './icons/apple-touch-icon.png', './icons/icon-192.png', './icons/icon-512.png',
 ];
 

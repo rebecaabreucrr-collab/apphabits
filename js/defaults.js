@@ -160,6 +160,7 @@ export function defaultState() {
     reviews: {},
     sleep: { goalHours: 8, bedtime: '21:00', wake: '05:00', log: {} },
     agenda: { items: [] },
+    closet: { items: [], looks: [], worn: {}, plan: {}, trips: [] },
     streaks: { on: true, inList: true, hidden: [], pauses: {}, perMonth: 2 },
     focus: { foco: 25, pausa: 5 },
 
@@ -213,6 +214,7 @@ export const TAB_DEFS = {
   metas: { label: 'Metas', icon: 'target' },
   sono: { label: 'Sono', icon: 'moon' },
   agenda: { label: 'Agenda', icon: 'calendar' },
+  looks: { label: 'Looks', icon: 'dress' },
   relatorio: { label: 'Relatório', icon: 'pie' },
   treinos: { label: 'Treinos', icon: 'dumbbell' },
   rotina: { label: 'Rotina', icon: 'calendar' },
@@ -225,14 +227,14 @@ export const LAYOUTS = {
   minimal: { name: 'Minimalista', desc: 'Claro, com detalhes rosa' },
 };
 export const CARD_NAMES = {
-  desafio: 'Desafio', agenda: 'Agenda', metas: 'Metas', sono: 'Sono', treino: 'Treino', remedios: 'Remédios', estudo: 'Estudo', ingles: 'Inglês', financas: 'Finanças', cabelo: 'Cabelo', leitura: 'Leitura', skincare: 'Skincare',
+  desafio: 'Desafio', agenda: 'Agenda', looks: 'Look de hoje', metas: 'Metas', sono: 'Sono', treino: 'Treino', remedios: 'Remédios', estudo: 'Estudo', ingles: 'Inglês', financas: 'Finanças', cabelo: 'Cabelo', leitura: 'Leitura', skincare: 'Skincare',
   agua: 'Água', ciclo: 'Meu ciclo',
 };
 export const SQUARE_NAMES = { nenhum: 'Nenhum', ciclo: 'Meu ciclo', agua: 'Água', desafio: 'Desafio', leitura: 'Leitura', estudo: 'Estudo', ingles: 'Inglês', remedios: 'Remédios' };
 export function defaultHome() {
   return {
     square2: 'ciclo',
-    cards: ['agenda', 'metas', 'sono', 'desafio', 'treino', 'remedios', 'estudo', 'ingles', 'financas', 'cabelo', 'leitura', 'skincare', 'agua', 'ciclo']
+    cards: ['agenda', 'looks', 'metas', 'sono', 'desafio', 'treino', 'remedios', 'estudo', 'ingles', 'financas', 'cabelo', 'leitura', 'skincare', 'agua', 'ciclo']
       .map((id) => ({ id, on: !['agua', 'ciclo'].includes(id) })),
     cardsLayout: 'grid',
     groupRoutine: true,

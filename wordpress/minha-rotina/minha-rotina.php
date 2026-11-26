@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Minha Rotina
  * Description:       App de rotina, hábitos e autocuidado dentro do WordPress. Abra em /minha-rotina/ (somente usuárias logadas).
- * Version: 1.6.0
+ * Version: 1.7.0
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            Rebeca
@@ -12,7 +12,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'MR_VERSION', '1.6.0' );
+define( 'MR_VERSION', '1.7.0' );
 define( 'MR_DIR', plugin_dir_path( __FILE__ ) );
 define( 'MR_URL', plugin_dir_url( __FILE__ ) );
 define( 'MR_OPT_DATA', 'minha_rotina_backup' );
@@ -247,6 +247,70 @@ function mr_agenda_set( WP_REST_Request $req ) {
 	}
 	update_user_meta( $uid, 'minha_rotina_ical', esc_url_raw( $url ) );
 	return mr_agenda_get( new WP_REST_Request( 'GET', '/minha-rotina/v1/agenda' ) );
+}
+
+/* ------------------------------------------------------------------ */
+/* Fotos do guarda-roupa: pasta protegida por usuária                  */
+/* ------------------------------------------------------------------ */
+add_action( 'rest_api_init', function () {
+	register_rest_route( 'minha-rotina/v1', '/foto', array(
+		array( 'methods' => 'GET', 'callback' => 'mr_foto_get', 'permission_callback' => 'mr_can_access' ),
+		array( 'methods' => 'POST', 'callback' => 'mr_foto_post', 'permission_callback' => 'mr_can_access' ),
+		array( 'methods' => 'DELETE', 'callback' => 'mr_foto_delete', 'permission_callback' => 'mr_can_access' ),
+	) );
+} );
+function mr_foto_dir() {
+	$up   = wp_upload_dir();
+	$base = trailingslashit( $up['basedir'] ) . 'minha-rotina-fotos';
+	if ( ! is_dir( $base ) ) {
+		wp_mkdir_p( $base );
+	}
+	// ninguém abre as fotos direto pelo navegador: só pelo app, com login
+	if ( ! file_exists( $base . '/.htaccess' ) ) {
+		file_put_contents( $base . '/.htaccess', "Require all denied\nDeny from all\n" );
+	}
+	if ( ! file_exists( $base . '/index.php' ) ) {
+		file_put_contents( $base . '/index.php', "<?php // Silence is golden.\n" );
+	}
+	$dir = $base . '/' . get_current_user_id() . '-' . substr( wp_hash( 'mr-fotos-' . get_current_user_id() ), 0, 12 );
+	if ( ! is_dir( $dir ) ) {
+		wp_mkdir_p( $dir );
+		file_put_contents( $dir . '/index.php', "<?php // Silence is golden.\n" );
+	}
+	return $dir;
+}
+function mr_foto_id( $id ) {
+	$id = (string) $id;
+	return preg_match( '/^[a-z0-9]{6,24}$/', $id ) ? $id : '';
+}
+function mr_foto_get( WP_REST_Request $req ) {
+	$id = mr_foto_id( $req->get_param( 'id' ) );
+	$f  = $id ? mr_foto_dir() . '/' . $id . '.jpg' : '';
+	if ( ! $f || ! file_exists( $f ) ) {
+		return new WP_REST_Response( array( 'data' => null ), 404 );
+	}
+	return new WP_REST_Response( array( 'data' => 'data:image/jpeg;base64,' . base64_encode( file_get_contents( $f ) ) ), 200 );
+}
+function mr_foto_post( WP_REST_Request $req ) {
+	$p  = $req->get_json_params();
+	$id = mr_foto_id( $p['id'] ?? '' );
+	if ( ! $id || ! preg_match( '#^data:image/jpeg;base64,([A-Za-z0-9+/=]+)$#', (string) ( $p['data'] ?? '' ), $m ) ) {
+		return new WP_REST_Response( array( 'message' => 'Foto inválida.' ), 400 );
+	}
+	$bin = base64_decode( $m[1], true );
+	if ( ! $bin || strlen( $bin ) > 1536 * 1024 || substr( $bin, 0, 3 ) !== "\xFF\xD8\xFF" ) {
+		return new WP_REST_Response( array( 'message' => 'Foto inválida ou grande demais.' ), 400 );
+	}
+	file_put_contents( mr_foto_dir() . '/' . $id . '.jpg', $bin );
+	return new WP_REST_Response( array( 'ok' => true ), 200 );
+}
+function mr_foto_delete( WP_REST_Request $req ) {
+	$id = mr_foto_id( $req->get_param( 'id' ) );
+	$f  = $id ? mr_foto_dir() . '/' . $id . '.jpg' : '';
+	if ( $f && file_exists( $f ) ) {
+		wp_delete_file( $f );
+	}
+	return new WP_REST_Response( array( 'ok' => true ), 200 );
 }
 
 function mr_render_app() {

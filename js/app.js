@@ -10,6 +10,8 @@ import { routes as goals } from './view-goals.js';
 import { routes as sleep } from './view-sleep.js';
 import { routes as streaks } from './view-streaks.js';
 import { routes as agenda } from './view-agenda.js';
+import { routes as looks } from './view-looks.js';
+import { flushPhotos } from './photos.js';
 import { startSync, onSync } from './sync.js';
 import { routes as study, studyElapsed, englishElapsed, tickPomodoros } from './view-study.js';
 import { A, C, ui, setRender, closeSheet, toast } from './ui.js';
@@ -45,7 +47,7 @@ export async function logout() {
 if (redirect?.error) setTimeout(() => { ui.authMsg = { text: redirect.error }; render(); }, 0);
 if (redirect?.type === 'signup' || redirect?.type === 'magiclink') setTimeout(() => toast('E-mail confirmado! 💜'), 400);
 if (authEnabled() && isLoggedIn()) ensureFresh().catch(() => { if (!isLoggedIn()) render(); });
-const routes = { ...today, ...care, ...reading, ...challenge, ...more, ...cycle, ...meds, ...study, ...report, ...finance, ...goals, ...sleep, ...streaks, ...agenda };
+const routes = { ...today, ...care, ...reading, ...challenge, ...more, ...cycle, ...meds, ...study, ...report, ...finance, ...goals, ...sleep, ...streaks, ...agenda, ...looks };
 
 function tabIds() { return ['hoje', ...state.settings.tabs.map((t) => t.id), 'mais']; }
 function renderTabs() {
@@ -150,6 +152,7 @@ render();
 // sincronização pelo WordPress (quando o app é aberto pelo plugin)
 onSync((ev) => { if (ev === 'pulled' && !document.querySelector('#sheet-root.open')) render(); if (ev === 'pulled') toast('Atualizado com o outro aparelho 🔄'); });
 startSync();
+flushPhotos();
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   const W = window.MR_WP;

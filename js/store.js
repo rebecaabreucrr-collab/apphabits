@@ -91,6 +91,12 @@ function migrate(s) {
     const tabs = s.settings.tabs || [];
     if (!tabs.some((t) => t.id === 'agenda') && tabs.length < 5) tabs.splice(0, 0, { id: 'agenda', label: 'Agenda' });
   }
+  // Looks: entra como aba (até 6 abas)
+  if (!s.profile.looksTab) {
+    s.profile.looksTab = true;
+    const tabs = s.settings.tabs || [];
+    if (!tabs.some((t) => t.id === 'looks') && tabs.length < 6) tabs.splice(tabs.some((t) => t.id === 'agenda') ? 1 : 0, 0, { id: 'looks', label: 'Looks' });
+  }
   const H = defaultHome();
   s.settings.home ||= H;
   for (const k of Object.keys(H)) if (s.settings.home[k] === undefined) s.settings.home[k] = H[k];
