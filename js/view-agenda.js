@@ -117,7 +117,11 @@ function itemRow(x) {
 }
 /** lista lateral: Minhas agendas (posso editar) e Outras agendas (só leitura), com a cor de cada uma */
 function googleCard() {
-  if (!wpOn()) return `<section class="card ag-side"><h2>Google Agenda</h2><p class="small muted">Para usar a sua Google Agenda aqui, abra o app pelo endereço do WordPress (seusite/minha-rotina/). Por enquanto, os compromissos ficam só no app.</p></section>`;
+  if (!wpOn()) return `<section class="card ag-side ag-warn" id="ag-side-info"><h2>Esta é a versão sem WordPress</h2>
+    <p class="small">Por isso a sua Google Agenda não aparece aqui. Para ver e editar a agenda (no celular também):</p>
+    <ol class="small ag-steps"><li>Abra no Safari o endereço do app no seu site: <b>seusite.com.br/minha-rotina/</b> e entre com seu usuário do WordPress.</li>
+      <li>Toque em <b>Compartilhar → Adicionar à Tela de Início</b>.</li><li>Apague o ícone antigo do app e use só o novo.</li></ol>
+    <p class="small muted">Seus dados vão junto se você fizer antes <b>Mais → Backup → Salvar</b> aqui e depois <b>Restaurar</b> no app novo.</p></section>`;
   const st = G.status;
   if (!st) return `<section class="card ag-side"><p class="small muted">Verificando a Google Agenda…</p></section>`;
   if (!st.configured) return `<section class="card ag-side"><h2>Google Agenda</h2><p class="small muted">Falta ligar o Google. Se você usa o <b>Recontar Gestão</b>, conecte a Google Agenda por lá e volte aqui. Senão, veja o passo a passo no painel do WordPress: <b>Minha Rotina → Google Agenda</b>. Depois volte aqui e toque em Conectar.</p></section>`;
@@ -155,7 +159,8 @@ function renderAgenda(p) {
   const dayEvs = eventsBetween(sel, sel);
   const canAdd = !wpOn() || !G.status?.connected || writable().length;
   const needPick = linked() && !selCals().length;
-  return `<header class="page-head top"><h1>Agenda</h1><div class="ph-right">${canAdd && !needPick ? `<button class="link" data-act="agNew" data-d="${sel}">+ Evento</button>` : ''}</div></header>
+  const warn = !wpOn() ? '<button class="card ag-warn-top" data-act="agInfo">Você está na versão sem WordPress — a Google Agenda não aparece aqui. <b>Veja como resolver ↓</b></button>' : '';
+  return `${warn}<header class="page-head top"><h1>Agenda</h1><div class="ph-right">${canAdd && !needPick ? `<button class="link" data-act="agNew" data-d="${sel}">+ Evento</button>` : ''}</div></header>
   ${needPick ? '<section class="card"><b>Escolha quais agendas do Google aparecem aqui</b><p class="small muted">Na lista de agendas, marque Compromissos pessoais, Rotina e Aniversários.</p></section>' : ''}
   <div class="ag-wrap">
     <div class="ag-main">
@@ -175,6 +180,7 @@ function renderAgenda(p) {
 }
 
 /* ---------- ações ---------- */
+A.agInfo = () => document.getElementById('ag-side-info')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 A.agPick = (el) => { ui.agDay = el.dataset.d; rerender(); };
 A.agToday = () => { ui.agDay = dateKey(); ui.agMonth = null; rerender(); };
 A.agMonth = (el) => {

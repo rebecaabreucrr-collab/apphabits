@@ -314,7 +314,39 @@ function mr_g_err( $e, $code = 502 ) {
 	return new WP_REST_Response( array( 'message' => $e instanceof WP_Error ? $e->get_error_message() : (string) $e ), $code );
 }
 /** agendas escolhidas que a usuária pode usar (só ids que existem na conta dela) */
+/** id da agenda de Aniversários: a dos Contatos do Google, se existir; senão uma agenda própria do app */
+function mr_g_bday_id( $list ) {
+	foreach ( (array) $list as $c ) {
+		if ( preg_match( '/#contacts@group\.v\.calendar\.google\.com$/', (string) $c['id'] ) ) {
+			return $c['id'];
+		}
+	}
+	return '__aniversarios';
+}
+/** aniversários: só para ver, com nome e cor próprios */
+function mr_g_with_bdays( $list ) {
+	if ( is_wp_error( $list ) ) {
+		return $list;
+	}
+	$list = array_values( array_filter( (array) $list, function ( $c ) { return '__aniversarios' !== $c['id']; } ) );
+	$bid  = mr_g_bday_id( $list );
+	if ( '__aniversarios' === $bid ) {
+		$list[] = array( 'id' => '__aniversarios', 'name' => 'Aniversários', 'color' => '#60a5fa', 'write' => false, 'primary' => false, 'virtual' => true );
+	} else {
+		foreach ( $list as &$c ) {
+			if ( $c['id'] === $bid ) {
+				$c['name']  = 'Aniversários';
+				$c['write'] = false;
+			}
+		}
+		unset( $c );
+	}
+	return $list;
+}
 function mr_g_calendars( $force = false ) {
+	return mr_g_with_bdays( mr_g_calendars_raw( $force ) );
+}
+function mr_g_calendars_raw( $force = false ) {
 	$uid  = get_current_user_id();
 	if ( 'ponte' === mr_g_mode() ) {
 		if ( $force && method_exists( 'RCG_Google', 'refresh_calendars' ) ) {
@@ -347,7 +379,6 @@ function mr_g_calendars( $force = false ) {
 			);
 		}, $r['items'] ?? array() );
 		// os aniversários do Google ficam dentro da agenda principal: viram uma agenda própria no app (só visualização)
-		$list[] = array( 'id' => '__aniversarios', 'name' => 'Aniversários', 'color' => '#60a5fa', 'write' => false, 'primary' => false, 'virtual' => true );
 		set_transient( 'mr_gcals_' . $uid, $list, 30 * MINUTE_IN_SECONDS );
 	}
 	return $list;
@@ -466,7 +497,8 @@ function mr_g_events( WP_REST_Request $req ) {
 	if ( 'ponte' === mr_g_mode() ) {
 		return mr_g_bridge_events( $cals, $sel, $tmin, $tmax, $zone );
 	}
-	$bday = in_array( '__aniversarios', $sel, true );
+	$bid  = mr_g_bday_id( $cals );
+	$bday = in_array( $bid, $sel, true );
 	foreach ( $cals as $c ) {
 		if ( ! empty( $c['virtual'] ) ) {
 			continue;
@@ -491,7 +523,13 @@ function mr_g_events( WP_REST_Request $req ) {
 			if ( $is_bday ? ! $bday : ! $on ) {
 				continue;
 			}
-			$cc  = $is_bday ? array( 'id' => '__aniversarios', 'name' => 'Aniversários', 'color' => '#60a5fa', 'write' => false ) : $c;
+			if ( $c['id'] === $bid ) {
+				$is_bday = true; // agenda dos Contatos: tudo nela é aniversário
+				if ( ! $bday ) {
+					continue;
+				}
+			}
+			$cc  = $is_bday ? array( 'id' => $bid, 'name' => 'Aniversários', 'color' => '#60a5fa', 'write' => false ) : $c;
 			$all = isset( $e['start']['date'] );
 			if ( $all ) {
 				$sd = $e['start']['date'];
@@ -660,7 +698,12 @@ function mr_g_disconnect() {
 
 /** eventos pela ponte do Recontar Gestão, no mesmo formato da API */
 function mr_g_bridge_events( $cals, $sel, $tmin, $tmax, $zone ) {
-	$r = mr_g_bridge( 'events', array( 'de' => $tmin, 'ate' => $tmax, 'ids' => array_values( $sel ) ) );
+	// Aniversários (sem agenda própria nessa ligação): busca nas agendas e separa pelo tipo ou pelo nome do evento
+	$virt = in_array( '__aniversarios', $sel, true ) && '__aniversarios' === mr_g_bday_id( $cals );
+	$real = array_values( array_filter( wp_list_pluck( $cals, 'id' ), function ( $id ) { return '__aniversarios' !== $id; } ) );
+	$ids  = $virt ? $real : array_values( array_diff( $sel, array( '__aniversarios' ) ) );
+	$isb  = function ( $e ) { return ( $e['tipo'] ?? $e['eventType'] ?? '' ) === 'birthday' || preg_match( '/^(anivers[aá]rio|birthday)\b/iu', (string) ( $e['titulo'] ?? '' ) ); };
+	$r = mr_g_bridge( 'events', array( 'de' => $tmin, 'ate' => $tmax, 'ids' => $ids ) );
 	if ( is_wp_error( $r ) ) {
 		return mr_g_err( $r );
 	}
@@ -668,9 +711,18 @@ function mr_g_bridge_events( $cals, $sel, $tmin, $tmax, $zone ) {
 	foreach ( $cals as $c ) {
 		$by[ $c['id'] ] = $c;
 	}
-	$items = array_values( array_filter( (array) ( $r['events'] ?? array() ), function ( $e ) use ( $sel, $by ) {
-		return is_array( $e ) && isset( $e['cal'], $e['id'], $e['inicio'], $by[ $e['cal'] ] ) && in_array( $e['cal'], $sel, true );
-	} ) );
+	$items = array();
+	foreach ( (array) ( $r['events'] ?? array() ) as $e ) {
+		if ( ! is_array( $e ) || ! isset( $e['cal'], $e['id'], $e['inicio'], $by[ $e['cal'] ] ) ) {
+			continue;
+		}
+		if ( $virt && $isb( $e ) ) {
+			$e['cal'] = '__aniversarios';
+		} elseif ( ! in_array( $e['cal'], $sel, true ) ) {
+			continue;
+		}
+		$items[] = $e;
+	}
 	// evento que se repete: na ponte, todas as vezes têm o mesmo id; pelo login do Google, o id termina com a data
 	$seen = array_count_values( array_map( function ( $e ) {
 		return $e['cal'] . '|' . $e['id'];
@@ -688,6 +740,11 @@ function mr_g_bridge_events( $cals, $sel, $tmin, $tmax, $zone ) {
 		$all = ! empty( $e['dia_todo'] );
 		$sd  = $s->format( 'Y-m-d' );
 		if ( $all ) {
+			// dia inteiro: usa a data como veio (sem fuso), senão cai no dia anterior
+			if ( preg_match( '/^(\d{4}-\d{2}-\d{2})/', (string) $e['inicio'], $m1 ) ) {
+				$sd = $m1[1];
+				$f  = new DateTime( substr( (string) ( $e['fim'] ?? $e['inicio'] ), 0, 10 ) );
+			}
 			$f->modify( '-1 day' ); // fim exclusivo
 			$ed = max( $sd, $f->format( 'Y-m-d' ) );
 		} else {
