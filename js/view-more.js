@@ -41,6 +41,7 @@ function renderMore() {
   </section>
   <h3 class="sec-title">Organizar</h3>
   <section class="card menu">
+    ${item('#/agenda', '📅', 'Agenda', 'Compromissos e Google Agenda', 'sky')}
     ${item('#/metas', '🎯', 'Metas e desafio', 'Objetivos do mês e do ano, desafio de 20 dias', 'violet')}
     ${item('#/sono', '🌙', 'Sono', 'Horários, qualidade e meta de horas', 'sky')}
     ${item('#/financas', '👛', 'Finanças', 'Receitas, despesas, contas, limites e leitura de fotos', 'violet')}
@@ -118,7 +119,7 @@ A.setLayout = (el) => { state.settings.layout = el.dataset.l; save(); rerender()
 A.setTheme = (el) => { state.settings.theme = el.dataset.t; save(); rerender(); };
 
 /* ---------- Abas ---------- */
-const OPTIONAL_TABS = ['metas', 'desafio', 'estudo', 'ingles', 'financas', 'relatorio', 'sono', 'leitura', 'cuidados', 'ciclo', 'remedios', 'treinos', 'rotina'];
+const OPTIONAL_TABS = ['agenda', 'metas', 'desafio', 'estudo', 'ingles', 'financas', 'relatorio', 'sono', 'leitura', 'cuidados', 'ciclo', 'remedios', 'treinos', 'rotina'];
 function renderTabs() {
   const on = state.settings.tabs;
   const off = OPTIONAL_TABS.filter((id) => !on.some((t) => t.id === id));

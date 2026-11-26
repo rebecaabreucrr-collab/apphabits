@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Minha Rotina
  * Description:       App de rotina, hábitos e autocuidado dentro do WordPress. Abra em /minha-rotina/ (somente usuárias logadas).
- * Version: 1.5.1
+ * Version: 1.6.0
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            Rebeca
@@ -12,7 +12,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'MR_VERSION', '1.5.1' );
+define( 'MR_VERSION', '1.6.0' );
 define( 'MR_DIR', plugin_dir_path( __FILE__ ) );
 define( 'MR_URL', plugin_dir_url( __FILE__ ) );
 define( 'MR_OPT_DATA', 'minha_rotina_backup' );
@@ -190,6 +190,63 @@ function mr_sync_post( WP_REST_Request $req ) {
 	update_user_meta( $uid, 'minha_rotina_dados', wp_slash( $json ) );
 	update_user_meta( $uid, 'minha_rotina_dados_em', $at ? $at : (int) round( microtime( true ) * 1000 ) );
 	return new WP_REST_Response( array( 'ok' => true, 'updatedAt' => $at ), 200 );
+}
+
+/* ------------------------------------------------------------------ */
+/* Agenda: lê a Google Agenda pelo "endereço secreto no formato iCal"  */
+/* O endereço fica só no perfil da usuária (não vai para o navegador). */
+/* ------------------------------------------------------------------ */
+add_action( 'rest_api_init', function () {
+	register_rest_route( 'minha-rotina/v1', '/agenda', array(
+		array( 'methods' => 'GET', 'callback' => 'mr_agenda_get', 'permission_callback' => 'mr_can_access' ),
+		array( 'methods' => 'POST', 'callback' => 'mr_agenda_set', 'permission_callback' => 'mr_can_access' ),
+	) );
+} );
+/** só aceita endereços iCal do Google Agenda (evita usar o site para buscar outras páginas) */
+function mr_agenda_url_ok( $url ) {
+	$p = wp_parse_url( $url );
+	return is_array( $p ) && ( $p['scheme'] ?? '' ) === 'https' && ( $p['host'] ?? '' ) === 'calendar.google.com'
+		&& strpos( $p['path'] ?? '', '/calendar/ical/' ) === 0 && substr( $p['path'], -4 ) === '.ics';
+}
+function mr_agenda_get( WP_REST_Request $req ) {
+	$uid = get_current_user_id();
+	$url = get_user_meta( $uid, 'minha_rotina_ical', true );
+	if ( ! $url ) {
+		return new WP_REST_Response( array( 'configured' => false ), 200 );
+	}
+	$key   = 'mr_ical_' . $uid;
+	$cache = get_transient( $key );
+	if ( ! $cache || $req->get_param( 'refresh' ) ) {
+		$res = wp_remote_get( $url, array( 'timeout' => 20, 'limit_response_size' => 5 * 1024 * 1024 ) );
+		if ( is_wp_error( $res ) || wp_remote_retrieve_response_code( $res ) !== 200 ) {
+			if ( $cache ) {
+				return new WP_REST_Response( array( 'configured' => true, 'ics' => $cache['ics'], 'at' => $cache['at'], 'stale' => true ), 200 );
+			}
+			return new WP_REST_Response( array( 'configured' => true, 'message' => 'Não consegui abrir a sua agenda. Confira se o endereço secreto ainda é válido.' ), 502 );
+		}
+		$ics = wp_remote_retrieve_body( $res );
+		if ( strpos( $ics, 'BEGIN:VCALENDAR' ) === false ) {
+			return new WP_REST_Response( array( 'configured' => true, 'message' => 'O endereço não devolveu uma agenda.' ), 502 );
+		}
+		$cache = array( 'ics' => $ics, 'at' => (int) round( microtime( true ) * 1000 ) );
+		set_transient( $key, $cache, 10 * MINUTE_IN_SECONDS );
+	}
+	return new WP_REST_Response( array( 'configured' => true, 'ics' => $cache['ics'], 'at' => $cache['at'] ), 200 );
+}
+function mr_agenda_set( WP_REST_Request $req ) {
+	$uid = get_current_user_id();
+	$p   = $req->get_json_params();
+	$url = trim( (string) ( $p['url'] ?? '' ) );
+	delete_transient( 'mr_ical_' . $uid );
+	if ( $url === '' ) {
+		delete_user_meta( $uid, 'minha_rotina_ical' );
+		return new WP_REST_Response( array( 'configured' => false ), 200 );
+	}
+	if ( ! mr_agenda_url_ok( $url ) ) {
+		return new WP_REST_Response( array( 'message' => 'Use o "Endereço secreto no formato iCal" da Google Agenda (começa com https://calendar.google.com/calendar/ical/ e termina em .ics).' ), 400 );
+	}
+	update_user_meta( $uid, 'minha_rotina_ical', esc_url_raw( $url ) );
+	return mr_agenda_get( new WP_REST_Request( 'GET', '/minha-rotina/v1/agenda' ) );
 }
 
 function mr_render_app() {

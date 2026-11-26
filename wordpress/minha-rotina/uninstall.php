@@ -8,3 +8,4 @@ delete_option( 'minha_rotina_ia_chave' );
 delete_option( 'minha_rotina_ia_modelo' );
 delete_metadata( 'user', 0, 'minha_rotina_dados', '', true );
 delete_metadata( 'user', 0, 'minha_rotina_dados_em', '', true );
+delete_metadata( 'user', 0, 'minha_rotina_ical', '', true );

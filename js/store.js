@@ -85,6 +85,12 @@ function migrate(s) {
   // sequências ficam dentro do relatório (sem aba ou card próprio)
   s.settings.tabs = (s.settings.tabs || []).filter((t) => t.id !== 'sequencias');
   if (s.settings.home?.cards) s.settings.home.cards = s.settings.home.cards.filter((c) => c.id !== 'sequencias');
+  // Agenda: entra como aba se houver espaço (uma vez)
+  if (!s.profile.agendaTab) {
+    s.profile.agendaTab = true;
+    const tabs = s.settings.tabs || [];
+    if (!tabs.some((t) => t.id === 'agenda') && tabs.length < 5) tabs.splice(0, 0, { id: 'agenda', label: 'Agenda' });
+  }
   const H = defaultHome();
   s.settings.home ||= H;
   for (const k of Object.keys(H)) if (s.settings.home[k] === undefined) s.settings.home[k] = H[k];
