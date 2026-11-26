@@ -1,7 +1,11 @@
 <?php
 /**
- * Google Agenda pela API oficial: ver, criar, editar e apagar eventos das agendas escolhidas.
- * A chave de acesso (refresh token) fica só no perfil da usuária no WordPress; o navegador nunca a recebe.
+ * Google Agenda: ver, criar, editar e apagar eventos das agendas escolhidas.
+ * Duas formas de ligar:
+ *  - "ponte": usa a ligação com o Google que o plugin Recontar Gestão já tem (Apps Script ou login do Google).
+ *    Não precisa configurar nada aqui. Só administradoras usam, porque a agenda é a da dona do site.
+ *  - "oauth": ligação própria pela API oficial (ID do cliente e chave do Google Cloud).
+ * As chaves ficam só no WordPress; o navegador nunca as recebe.
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -18,6 +22,25 @@ function mr_g_redirect_uri() {
 }
 function mr_g_configured() {
 	return get_option( MR_OPT_GCLIENT ) && get_option( MR_OPT_GSECRET );
+}
+/** a ligação do Recontar Gestão está ativa? */
+function mr_g_bridge_ready() {
+	return class_exists( 'RCG_Google' ) && method_exists( 'RCG_Google', 'configured' ) && method_exists( 'RCG_Google', 'call' ) && RCG_Google::configured();
+}
+/** 'oauth' (ligação própria), 'ponte' (do Recontar Gestão) ou '' (sem ligação) */
+function mr_g_mode() {
+	if ( mr_g_configured() && get_user_meta( get_current_user_id(), 'minha_rotina_gtoken', true ) ) {
+		return 'oauth';
+	}
+	return mr_g_bridge_ready() && current_user_can( 'manage_options' ) ? 'ponte' : '';
+}
+/** chamada à ponte do Recontar Gestão */
+function mr_g_bridge( $action, $data = array() ) {
+	$r = RCG_Google::call( $action, $data );
+	if ( is_wp_error( $r ) ) {
+		return new WP_Error( 'mr_g', $r->get_error_message() );
+	}
+	return is_array( $r ) ? $r : array();
 }
 
 add_filter( 'query_vars', function ( $vars ) {
@@ -134,6 +157,21 @@ function mr_g_err( $e, $code = 502 ) {
 /** agendas escolhidas que a usuária pode usar (só ids que existem na conta dela) */
 function mr_g_calendars( $force = false ) {
 	$uid  = get_current_user_id();
+	if ( 'ponte' === mr_g_mode() ) {
+		if ( $force && method_exists( 'RCG_Google', 'refresh_calendars' ) ) {
+			RCG_Google::refresh_calendars();
+		}
+		$cfg = method_exists( 'RCG_Google', 'cfg' ) ? RCG_Google::cfg() : array();
+		return array_values( array_map( function ( $c ) {
+			return array(
+				'id'      => (string) $c['id'],
+				'name'    => (string) ( $c['nome'] ?? $c['id'] ),
+				'color'   => (string) ( $c['cor'] ?? '#a78bfa' ),
+				'write'   => ! isset( $c['minha'] ) || ! empty( $c['minha'] ),
+				'primary' => false,
+			);
+		}, (array) ( $cfg['calendars'] ?? array() ) ) );
+	}
 	$list = $force ? false : get_transient( 'mr_gcals_' . $uid );
 	if ( ! $list ) {
 		$r = mr_g_api( 'GET', '/users/me/calendarList', array( 'maxResults' => 100 ) );
@@ -188,10 +226,13 @@ add_action( 'rest_api_init', function () {
 } );
 
 function mr_g_status() {
-	$uid = get_current_user_id();
+	$mode = mr_g_mode();
+	$cfg  = 'ponte' === $mode && method_exists( 'RCG_Google', 'cfg' ) ? RCG_Google::cfg() : array();
 	return new WP_REST_Response( array(
-		'configured' => (bool) mr_g_configured(),
-		'connected'  => (bool) get_user_meta( $uid, 'minha_rotina_gtoken', true ),
+		'configured' => mr_g_configured() || 'ponte' === $mode,
+		'connected'  => '' !== $mode,
+		'mode'       => $mode,
+		'account'    => (string) ( $cfg['email'] ?? '' ),
 		'connect'    => add_query_arg( 'minha_rotina_gauth', '1', home_url( '/' ) ),
 		'selected'   => mr_g_selected(),
 	), 200 );
@@ -233,6 +274,9 @@ function mr_g_events( WP_REST_Request $req ) {
 	}
 	$tmin = ( new DateTime( $start . ' 00:00:00', $zone ) )->format( DATE_RFC3339 );
 	$tmax = ( new DateTime( $end . ' 23:59:59', $zone ) )->format( DATE_RFC3339 );
+	if ( 'ponte' === mr_g_mode() ) {
+		return mr_g_bridge_events( $cals, $sel, $tmin, $tmax, $zone );
+	}
 	foreach ( $cals as $c ) {
 		if ( ! in_array( $c['id'], $sel, true ) ) {
 			continue;
@@ -303,6 +347,15 @@ function mr_g_event_save( WP_REST_Request $req ) {
 		$ev['end']   = array( 'dateTime' => "{$date}T{$t2}:00", 'timeZone' => $tz );
 	}
 	$id = (string) ( $p['id'] ?? '' );
+	if ( 'ponte' === mr_g_mode() ) {
+		if ( $id ) {
+			// a ponte troca a descrição inteira do evento e não sabe qual era: editar fica pelo Google
+			return mr_g_err( 'Para mudar este evento, abra na Google Agenda.', 400 );
+		}
+		$desc = trim( ( $ev['location'] ? '📍 ' . $ev['location'] . "\n" : '' ) . $ev['description'] );
+		$r    = mr_g_bridge( 'upsert', array( 'cal' => $cal, 'id' => '', 'titulo' => $title, 'descricao' => $desc, 'data' => $date, 'hora' => isset( $ev['start']['date'] ) ? '' : $t1 ) );
+		return is_wp_error( $r ) ? mr_g_err( $r ) : new WP_REST_Response( array( 'ok' => true, 'id' => $r['id'] ?? '' ), 200 );
+	}
 	if ( $id ) {
 		// ao editar, limpa o outro formato (dia todo <-> com horário)
 		foreach ( array( 'start', 'end' ) as $k ) {
@@ -325,11 +378,16 @@ function mr_g_event_del( WP_REST_Request $req ) {
 	if ( ! $id || ! mr_g_cal_ok( $cal, true ) ) {
 		return mr_g_err( 'Esse evento não pode ser apagado pelo app.', 403 );
 	}
-	$r = mr_g_api( 'DELETE', '/calendars/' . rawurlencode( $cal ) . '/events/' . rawurlencode( $id ) );
+	$r = 'ponte' === mr_g_mode()
+		? mr_g_bridge( 'remove', array( 'cal' => $cal, 'id' => $id ) )
+		: mr_g_api( 'DELETE', '/calendars/' . rawurlencode( $cal ) . '/events/' . rawurlencode( $id ) );
 	return is_wp_error( $r ) ? mr_g_err( $r ) : new WP_REST_Response( array( 'ok' => true ), 200 );
 }
 function mr_g_disconnect() {
 	$uid = get_current_user_id();
+	if ( 'ponte' === mr_g_mode() ) {
+		return mr_g_err( 'Esta ligação é a do Recontar Gestão. Para desligar, use a página Agenda de lá.', 400 );
+	}
 	$rt  = get_user_meta( $uid, 'minha_rotina_gtoken', true );
 	if ( $rt ) {
 		wp_remote_post( MR_GOOGLE_REVOKE, array( 'timeout' => 10, 'body' => array( 'token' => $rt ) ) );
@@ -338,6 +396,54 @@ function mr_g_disconnect() {
 	delete_transient( 'mr_gat_' . $uid );
 	delete_transient( 'mr_gcals_' . $uid );
 	return new WP_REST_Response( array( 'connected' => false ), 200 );
+}
+
+/** eventos pela ponte do Recontar Gestão, no mesmo formato da API */
+function mr_g_bridge_events( $cals, $sel, $tmin, $tmax, $zone ) {
+	$r = mr_g_bridge( 'events', array( 'de' => $tmin, 'ate' => $tmax, 'ids' => array_values( $sel ) ) );
+	if ( is_wp_error( $r ) ) {
+		return mr_g_err( $r );
+	}
+	$by = array();
+	foreach ( $cals as $c ) {
+		$by[ $c['id'] ] = $c;
+	}
+	$items = array_values( array_filter( (array) ( $r['events'] ?? array() ), function ( $e ) use ( $sel, $by ) {
+		return is_array( $e ) && isset( $e['cal'], $e['id'], $e['inicio'], $by[ $e['cal'] ] ) && in_array( $e['cal'], $sel, true );
+	} ) );
+	// evento que se repete: na ponte, todas as vezes têm o mesmo id; pelo login do Google, o id termina com a data
+	$seen = array_count_values( array_map( function ( $e ) {
+		return $e['cal'] . '|' . $e['id'];
+	}, $items ) );
+	$out = array();
+	foreach ( $items as $e ) {
+		try {
+			$s = new DateTime( $e['inicio'] );
+			$f = new DateTime( $e['fim'] ?? $e['inicio'] );
+		} catch ( Exception $ex ) {
+			continue;
+		}
+		$s->setTimezone( $zone );
+		$f->setTimezone( $zone );
+		$all = ! empty( $e['dia_todo'] );
+		$sd  = $s->format( 'Y-m-d' );
+		if ( $all ) {
+			$f->modify( '-1 day' ); // fim exclusivo
+			$ed = max( $sd, $f->format( 'Y-m-d' ) );
+		} else {
+			$ed = $f->format( 'Y-m-d' );
+		}
+		$c   = $by[ $e['cal'] ];
+		$rec = $seen[ $e['cal'] . '|' . $e['id'] ] > 1 || preg_match( '/_\d{8}(T\d{6}Z)?$/', (string) $e['id'] );
+		$out[] = array(
+			'id' => (string) $e['id'], 'cal' => $c['id'], 'calName' => $c['name'], 'color' => ! empty( $e['cor'] ) ? $e['cor'] : $c['color'],
+			'edit' => false, 'del' => $c['write'] && ! $rec,
+			'title' => (string) ( $e['titulo'] ?? '' ) !== '' ? (string) $e['titulo'] : '(sem título)', 'date' => $sd, 'endDate' => $ed,
+			'time' => $all ? '' : $s->format( 'H:i' ), 'end' => $all ? '' : $f->format( 'H:i' ), 'allDay' => $all,
+			'location' => (string) ( $e['local'] ?? '' ), 'notes' => '', 'recurring' => (bool) $rec,
+		);
+	}
+	return new WP_REST_Response( array( 'events' => $out, 'at' => (int) round( microtime( true ) * 1000 ) ), 200 );
 }
 
 /* ---------- painel: onde colar o ID e a chave do Google ---------- */
@@ -359,11 +465,20 @@ add_action( 'admin_post_mr_google', function () {
 	exit;
 } );
 function mr_google_admin_section() {
-	$id  = get_option( MR_OPT_GCLIENT );
-	$has = (bool) get_option( MR_OPT_GSECRET );
+	$id     = get_option( MR_OPT_GCLIENT );
+	$has    = (bool) get_option( MR_OPT_GSECRET );
+	$bridge = mr_g_bridge_ready();
+	$cfg    = $bridge && method_exists( 'RCG_Google', 'cfg' ) ? RCG_Google::cfg() : array();
 	?>
 	<h2 id="google">📅 Google Agenda</h2>
-	<p>Para ver, criar e editar eventos da sua Google Agenda pelo app, crie uma ligação gratuita no Google (uma vez só):</p>
+	<?php if ( $bridge ) : ?>
+		<p><span style="color:#15803d">✓ Pronto, não precisa configurar nada.</span> O app usa a mesma ligação com o Google do <b>Recontar Gestão</b><?php echo ! empty( $cfg['email'] ) ? ' (conta <b>' . esc_html( $cfg['email'] ) . '</b>)' : ''; ?>.
+			No app, abra <b>Agenda</b> e marque as agendas que quer ver.</p>
+		<p class="description">Por essa ligação o app mostra os eventos, cria eventos novos (com horário, ficam com 30 minutos) e apaga eventos. Para mudar um evento que já existe, use a Google Agenda.</p>
+		<details><summary>Outra forma: ligação própria pelo Google Cloud (opcional)</summary>
+	<?php else : ?>
+		<p>Se o plugin <b>Recontar Gestão</b> estiver ligado ao Google, o app usa essa ligação e não precisa de nada aqui. Sem ele, crie uma ligação gratuita no Google (uma vez só):</p>
+	<?php endif; ?>
 	<ol>
 		<li>Entre em <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">console.cloud.google.com</a> com a sua conta Google e crie um projeto (ex.: “Minha Rotina”).</li>
 		<li>Em <b>APIs e serviços → Biblioteca</b>, procure <b>Google Calendar API</b> e clique em <b>Ativar</b>.</li>
@@ -379,5 +494,6 @@ function mr_google_admin_section() {
 		<p><label>Chave secreta do cliente<br><input type="password" class="regular-text" name="client_secret" value="" placeholder="<?php echo $has ? '•••••••• (já salva — deixe em branco para manter)' : ''; ?>" autocomplete="new-password"></label></p>
 		<p><button class="button button-primary">Salvar</button> <?php echo $id && $has ? '<span style="color:#15803d">✓ configurado</span>' : ''; ?></p>
 	</form>
+	<?php echo $bridge ? '</details>' : ''; ?>
 	<?php
 }

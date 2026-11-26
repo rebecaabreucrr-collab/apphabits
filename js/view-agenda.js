@@ -21,6 +21,8 @@ let busy = false;
 const linked = () => wpOn() && G.status?.connected;
 const selCals = () => (G.calendars || []).filter((c) => (G.status?.selected || []).includes(c.id));
 const writable = () => selCals().filter((c) => c.write);
+const ponte = () => linked() && G.status?.mode === 'ponte'; // ligação emprestada do Recontar Gestão
+const gLink = (d) => `https://calendar.google.com/calendar/r/day/${d.replace(/-/g, '/')}`;
 
 async function gapi(method, path, { body, query = '' } = {}) {
   const res = await fetch(W().rest + 'google' + path + query, {
@@ -111,7 +113,7 @@ function googleCard() {
   if (!wpOn()) return `<section class="card ag-side"><h2>Google Agenda</h2><p class="small muted">Para usar a sua Google Agenda aqui, abra o app pelo endereço do WordPress (seusite/minha-rotina/). Por enquanto, os compromissos ficam só no app.</p></section>`;
   const st = G.status;
   if (!st) return `<section class="card ag-side"><p class="small muted">Verificando a Google Agenda…</p></section>`;
-  if (!st.configured) return `<section class="card ag-side"><h2>Google Agenda</h2><p class="small muted">Falta configurar a ligação com o Google no painel do WordPress: <b>Minha Rotina → Google Agenda</b> (tem o passo a passo lá). Depois volte aqui e toque em Conectar.</p></section>`;
+  if (!st.configured) return `<section class="card ag-side"><h2>Google Agenda</h2><p class="small muted">Falta ligar o Google. Se você usa o <b>Recontar Gestão</b>, conecte a Google Agenda por lá e volte aqui. Senão, veja o passo a passo no painel do WordPress: <b>Minha Rotina → Google Agenda</b>. Depois volte aqui e toque em Conectar.</p></section>`;
   if (!st.connected) return `<section class="card ag-side"><h2>Conectar a Google Agenda</h2>
     <p class="small muted">Você vai entrar na sua conta Google e permitir o acesso. Se aparecer “app não verificado”, toque em <b>Avançado → Acessar</b> (é o seu próprio app).</p>
     <a class="btn primary block" href="${esc(st.connect)}">Conectar com o Google</a>
@@ -124,8 +126,9 @@ function googleCard() {
     ${other.length ? `<h4>Outras agendas</h4>${other.map(row).join('')}` : ''}
     ${G.error ? `<p class="small err">${esc(G.error)}</p>` : ''}
     <details class="ag-conn"><summary>Conexão com o Google</summary>
-      <p class="small muted">Conectada.${G.at ? ` Atualizado às ${pad(new Date(G.at).getHours())}:${pad(new Date(G.at).getMinutes())}.` : ''} Só as agendas marcadas aparecem no app.</p>
-      <div class="row gap wrap"><button class="btn small" data-act="agRefresh">🔄 Atualizar</button><button class="btn small ghost" data-act="agDisconnect">Desconectar</button></div></details>
+      <p class="small muted">Conectada${st.mode === 'ponte' ? ` pela ligação do Recontar Gestão${st.account ? ` (${esc(st.account)})` : ''}` : ''}.${G.at ? ` Atualizado às ${pad(new Date(G.at).getHours())}:${pad(new Date(G.at).getMinutes())}.` : ''} Só as agendas marcadas aparecem no app.</p>
+      ${st.mode === 'ponte' ? '<p class="small muted">Por essa ligação, eventos novos com horário ficam com 30 minutos, e para mudar um evento que já existe use a Google Agenda.</p>' : ''}
+      <div class="row gap wrap"><button class="btn small" data-act="agRefresh">🔄 Atualizar</button>${st.mode === 'ponte' ? '' : '<button class="btn small ghost" data-act="agDisconnect">Desconectar</button>'}</div></details>
   </section>`;
 }
 function oldItemsCard() {
@@ -197,8 +200,18 @@ function eventSheet(x, date) {
   const it = x || { title: '', date: date || ui.agDay || dateKey(), time: '', end: '', allDay: false, location: '', notes: '', cal: writable()[0]?.id };
   const canEdit = !google || !x || x.edit;
   if (google && x && !canEdit) {
+    const ro = ponte() ? `${esc(x.calName || '')}${x.recurring ? ' · evento que se repete' : ''}. Para mudar, abra na Google Agenda.`
+      : `${esc(x.calName || '')} é só leitura${/anivers|birthday|contact/i.test(x.cal + x.calName) ? ' (os aniversários vêm dos seus Contatos do Google — mude por lá)' : ''}.`;
     return sheet(x.title, `<p class="muted">${fmtLong(x.date)} · ${esc(when(x))}</p>${x.location ? `<p>📍 ${esc(x.location)}</p>` : ''}${x.notes ? `<p class="note">${esc(x.notes).replace(/\n/g, '<br>')}</p>` : ''}
-      <p class="small muted">${esc(x.calName || '')} é só leitura${/anivers|birthday|contact/i.test(x.cal + x.calName) ? ' (os aniversários vêm dos seus Contatos do Google — mude por lá)' : ''}.</p>`);
+      <p class="small muted">${ro}</p>
+      ${ponte() ? `<a class="btn block" href="${gLink(x.date)}" target="_blank" rel="noopener">Abrir no Google Agenda</a>` : ''}
+      ${ponte() && x.del ? '<button type="button" class="btn danger-ghost block" id="ag-del">Apagar evento</button>' : ''}`, {
+      onMount: (root) => root.querySelector('#ag-del')?.addEventListener('click', () => confirmSheet('Apagar evento?', 'Ele também será apagado da sua Google Agenda.', 'Apagar', async () => {
+        try { await gapi('DELETE', '/eventos', { query: `?cal=${encodeURIComponent(x.cal)}&id=${encodeURIComponent(x.id)}` }); G.events = G.events.filter((y) => !(y.id === x.id && y.cal === x.cal)); gsave(); toast('Evento apagado'); }
+        catch (err) { toast(err.message); }
+        rerender();
+      })),
+    });
   }
   sheet(x ? 'Editar evento' : 'Novo evento', `<form class="form">
     <label class="field"><span>O que é</span><input name="title" required value="${esc(it.title)}" placeholder="Ex.: Dentista, aniversário da Ana"></label>
@@ -206,7 +219,8 @@ function eventSheet(x, date) {
     <label class="field"><span>Data</span><input type="date" name="date" required value="${it.date}"></label>
     <label class="toggle-row"><span><b>Dia todo</b></span><input type="checkbox" class="switch" name="allDay" ${it.allDay ? 'checked' : ''}></label>
     <div class="row gap ag-times"><label class="field grow"><span>Começa</span><input type="time" name="time" value="${it.time || ''}"></label>
-      <label class="field grow"><span>Termina</span><input type="time" name="end" value="${it.end || ''}"></label></div>
+      ${ponte() ? '' : `<label class="field grow"><span>Termina</span><input type="time" name="end" value="${it.end || ''}"></label>`}</div>
+    ${ponte() ? '<p class="small muted">Com horário, o evento fica com 30 minutos na Google Agenda (dá para ajustar lá).</p>' : ''}
     <label class="field"><span>Local (opcional)</span><input name="location" value="${esc(it.location || '')}"></label>
     <label class="field"><span>Observação (opcional)</span><textarea name="notes" rows="2">${esc(it.notes || '')}</textarea></label>
     ${x?.recurring ? '<p class="small muted">Este evento se repete: a mudança vale só para este dia.</p>' : ''}
