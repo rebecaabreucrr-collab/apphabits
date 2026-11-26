@@ -49,7 +49,6 @@ function renderSleep() {
   const days = Array.from({ length: 14 }, (_, i) => addDays(t, i - 13)).map((d) => ({ d, h: s.log[d] ? sleepHours(s.log[d]) : 0, lab: WD[parseKey(d).getDay()][0] }));
   const wk = sleepRange(addDays(t, -6), t);
   const hist = Object.keys(s.log).sort().reverse().slice(0, 10);
-  const avgBed = (() => { const ks = Object.keys(s.log).sort().slice(-7); if (!ks.length) return ''; let m = 0; for (const k of ks) { const [h, mi] = s.log[k].bed.split(':').map(Number); m += (h < 12 ? h + 24 : h) * 60 + mi; } m = Math.round(m / ks.length) % (24 * 60); return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; })();
   return `<header class="page-head top"><h1>Sono</h1></header>
   <form class="card form sleep-form" id="sleep-form">
     <h2>${today ? 'Noite registrada ✓' : 'Como você dormiu esta noite?'}</h2>
@@ -59,9 +58,11 @@ function renderSleep() {
     <label class="field"><span>Anotação (opcional)</span><input name="note" value="${esc(today?.note || '')}" placeholder="Ex.: acordei de madrugada, café tarde…"></label>
     <button class="btn primary block">${today ? 'Atualizar' : 'Salvar noite'}</button>
   </form>
-  <section class="card rep-hero">${ring(wk.n ? Math.min(1, wk.avg / s.goalHours) : 0, { size: 92, stroke: 10, label: wk.n ? hm(wk.avg) : '–', sub: 'média 7 dias' })}
-    <div class="grow"><b>${wk.n ? `${wk.ok} de ${wk.n} noites na meta` : 'Registre suas noites'}</b><small>Meta: ${s.goalHours}h por noite${avgBed ? ` · dormindo em média às ${avgBed}` : ''}</small>
-    <small>Para acordar às ${s.wake} com ${s.goalHours}h de sono, deite às <b>${(() => { const [h, m] = s.wake.split(':').map(Number); let x = h * 60 + m - s.goalHours * 60; x = (x + 1440) % 1440; return `${String(Math.floor(x / 60)).padStart(2, '0')}:${String(x % 60).padStart(2, '0')}`; })()}</b></small></div></section>
+  <section class="card sl-sum">
+    <div class="row between"><b>${wk.n ? `Média dos últimos 7 dias: ${hm(wk.avg)}` : 'Registre suas noites'}</b>${wk.n ? tag(sleepClass(wk.avg)) : ''}</div>
+    ${bar(wk.n ? wk.avg / s.goalHours : 0)}
+    <small>${wk.n ? `${wk.ok} de ${wk.n} noite${wk.n === 1 ? '' : 's'} na meta · ` : ''}Meta: ${String(s.goalHours).replace('.', ',')}h por noite</small>
+    <small>Para acordar às ${s.wake} com ${String(s.goalHours).replace('.', ',')}h de sono, deite às <b>${(() => { const [h, m] = s.wake.split(':').map(Number); let x = h * 60 + m - s.goalHours * 60; x = (x + 1440) % 1440; return `${String(Math.floor(x / 60)).padStart(2, '0')}:${String(x % 60).padStart(2, '0')}`; })()}</b></small></section>
   <section class="card"><div class="card-head"><h2>Últimas 2 semanas</h2><small>toque numa barra</small></div>${chart(days)}</section>
   <section class="card"><h2>Meta de sono</h2>
     <div class="row gap"><label class="field grow"><span>Horas por noite</span><select data-change="sleepSet" data-k="goalHours">${[6, 6.5, 7, 7.5, 8, 8.5, 9].map((h) => opt(h, `${String(h).replace('.', ',')}h`, s.goalHours)).join('')}</select></label>
